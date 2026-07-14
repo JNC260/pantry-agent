@@ -1,0 +1,1 @@
+This application is a personal project built solely for the developer's own use. It accesses the developer's own Pinterest account via OAuth to read board and pin data. No data is shared with, sold to, or accessed by any third party. No other users' data is collected. Data is stored locally/privately for the purpose of the developer's own recipe management tool.
