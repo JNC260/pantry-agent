@@ -1,11 +1,12 @@
-import { Agent } from '@mastra/core/agent';
-import { Memory } from '@mastra/memory';
-import { weatherTool } from '../tools/weather-tool';
-import { scorers } from '../scorers/weather-scorer';
+import { Agent } from "@mastra/core/agent";
+import { Memory } from "@mastra/memory";
+import { weatherTool } from "../tools/weather-tool";
+import { scorers } from "../scorers/weather-scorer";
 import { getMyBoardsTool, getPinsFromBoardTool } from "../tools/pantry-tools";
+import { extractRecipeTool } from "../tools/extractRecipe";
 
 export const pantryAgent = new Agent({
-  id: 'pantry-agent',
+  id: "pantry-agent",
   name: "Pantry Agent",
   instructions: `You are a helpful assistant for managing recipes and pantry items.
     Use the get-my-boards tool when the user asks about their Pinterest boards.
@@ -15,8 +16,14 @@ export const pantryAgent = new Agent({
     1. Call get-my-boards first to get the list of boards and their ids.
     2. Find the board whose name matches what the user said.
     3. Call get-pins-from-board with that board's id.
+
+    The extract-recipe tool requires a url. When the user refers to a pin by name you must:
+    1. Call get-my-boards first to get the list of boards and their ids.
+    2. Find the board whose name matches what the user said.
+    3. Call get-pins-from-board with that board's id.
+    4. Find the pin the user referred to and get the url from it
     Never guess or invent a boardId — always resolve it from get-my-boards first.
     If no board name matches, tell the user you couldn't find that board and list the available board names.`,
   model: "anthropic/claude-sonnet-4-6",
-  tools: { getMyBoardsTool, getPinsFromBoardTool },
+  tools: { getMyBoardsTool, getPinsFromBoardTool, extractRecipeTool },
 });
