@@ -301,9 +301,9 @@ A few things worth understanding, not just copying:
 
 This is the real work of this session, so budget real time for it:
 
-- [ ] Try 3-4 different recipe URLs from different sites (a food blog, AllRecipes-style site, a NYT Cooking-style site if you have one saved, etc.) — they're all formatted differently, which is exactly why this step matters
-- [ ] For any that extract poorly, tweak the prompt text (not the schema) — e.g. adding "Recipe sites often have irrelevant 'related recipes' sections near the bottom — ignore those" if you notice that pattern
-- [ ] Don't chase perfection on every site tonight. A couple of clean examples plus honest notes on where it still struggles is a legitimate, presentable result — "here's where my extraction pipeline breaks down and why" is a good engineering story for interviews, not a weakness to hide.
+- [x] Try 3-4 different recipe URLs from different sites (a food blog, AllRecipes-style site, a NYT Cooking-style site if you have one saved, etc.) — they're all formatted differently, which is exactly why this step matters
+- [x] For any that extract poorly, tweak the prompt text (not the schema) — e.g. adding "Recipe sites often have irrelevant 'related recipes' sections near the bottom — ignore those" if you notice that pattern
+- [x] Don't chase perfection on every site tonight. A couple of clean examples plus honest notes on where it still struggles is a legitimate, presentable result — "here's where my extraction pipeline breaks down and why" is a good engineering story for interviews, not a weakness to hide.
 
 ### Step 4 — Commit
 

@@ -16,9 +16,10 @@ export const getMyBoardsTool = createTool({
     ),
   }),
   execute: async () => {
+    const token = await getValidPinterestToken();
     const response = await axios.get("https://api.pinterest.com/v5/boards", {
       headers: {
-        Authorization: `Bearer ${process.env.PINTEREST_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -55,13 +56,7 @@ export const getPinsFromBoardTool = createTool({
       `https://api.pinterest.com/v5/boards/${boardId}/pins`,
       {
         headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.9",
-          "Accept-Encoding": "gzip, deflate, br",
-          Referer: "https://www.google.com/",
+          Authorization: `Bearer ${token}`,
         },
       },
     );
