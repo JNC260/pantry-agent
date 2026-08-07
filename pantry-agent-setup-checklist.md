@@ -82,8 +82,8 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import axios from "axios";
 
-export const getMyBoardsTool = createTool({
-  id: "get-my-boards",
+export const getBoardsTool = createTool({
+  id: "get-boards",
   description: "Lists the boards on the user's own Pinterest account",
   inputSchema: z.object({}), // no input needed — it always fetches "my" boards
   outputSchema: z.object({
@@ -126,14 +126,14 @@ npm install axios
 Open the agent file the scaffold created (likely `src/mastra/agents/weather-agent.ts` or similar — check your Session 1 notes for the exact filename). Import your new tool and add it:
 
 ```ts
-import { getMyBoardsTool } from "../tools/getMyBoards";
+import { getBoardsTool } from "../tools/getMyBoards";
 
 export const pantryAgent = new Agent({
   name: "Pantry Agent",
   instructions: `You are a helpful assistant for managing recipes and pantry items.
-    Use the get-my-boards tool when the user asks about their Pinterest boards.`,
+    Use the get-boards tool when the user asks about their Pinterest boards.`,
   model: "anthropic/claude-sonnet-4-6",
-  tools: { getMyBoardsTool },
+  tools: { getBoardsTool },
 });
 ```
 
@@ -212,7 +212,7 @@ export const getPinsFromBoardTool = createTool({
 });
 ```
 
-- [x] Add this tool to your agent's `tools: {}` object alongside `getMyBoardsTool`
+- [x] Add this tool to your agent's `tools: {}` object alongside `getBoardsTool`
 - [x] In Studio, ask: "What pins are on board [paste one of your board IDs from Session 3]?"
 - [x] Confirm you get back pin titles and, importantly, a `sourceLink` for at least a few of them (some pins might not have one — that's fine, expected, just skip those later)
 
@@ -326,4 +326,4 @@ git push
 
 ## Where things stand after Session 5
 
-At this point you have three working tools (`get-my-boards`, `get-pins-from-board`, `extract-recipe`) and a real, if small, end-to-end pipeline: Pinterest → source link → structured recipe JSON. That's genuinely the hardest 80% of Phase 1 done. From here, Phase 1's remaining work is mostly repetition and storage (looping the extraction over every pin on a board, saving results to the database Mastra already gives you via LibSQL) rather than new hard problems — a good point to pause and reassess scope against your end-of-August target.
+At this point you have three working tools (`get-boards`, `get-pins-from-board`, `extract-recipe`) and a real, if small, end-to-end pipeline: Pinterest → source link → structured recipe JSON. That's genuinely the hardest 80% of Phase 1 done. From here, Phase 1's remaining work is mostly repetition and storage (looping the extraction over every pin on a board, saving results to the database Mastra already gives you via LibSQL) rather than new hard problems — a good point to pause and reassess scope against your end-of-August target.

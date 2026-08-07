@@ -2,6 +2,11 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import axios from "axios";
 import { getValidPinterestToken } from "../../lib/pinterest-auth";
+import {
+  getCachedPins,
+  pinsAreFresh,
+  replaceCachedPins,
+} from "../../lib/pinterest-cache";
 
 export const getPinsFromBoardTool = createTool({
   id: "get-pins-from-board",
@@ -9,6 +14,10 @@ export const getPinsFromBoardTool = createTool({
     "Lists the pins on a specific Pinterest board, including each pin's source link",
   inputSchema: z.object({
     boardId: z.string().describe("The Pinterest board ID to fetch pins from"),
+    refresh: z
+      .boolean()
+      .optional()
+      .describe("Set true to bypass the cache and refetch from Pinterest"),
   }),
   outputSchema: z.object({
     pins: z.array(
@@ -21,6 +30,14 @@ export const getPinsFromBoardTool = createTool({
   }),
   execute: async (inputData) => {
     const { boardId } = inputData;
+
+    const refresh = inputData.refresh ?? false;
+
+    if (!refresh && (await pinsAreFresh(boardId))) {
+      const pins = await getCachedPins(boardId);
+      if (pins.length > 0) return { pins };
+    }
+
     const token = await getValidPinterestToken();
 
     const response = await axios.get(
@@ -38,6 +55,7 @@ export const getPinsFromBoardTool = createTool({
       sourceLink: p.link ?? null, // this is the URL back to the original recipe site
     }));
 
+    await replaceCachedPins(boardId, pins);
     return { pins };
   },
 });
