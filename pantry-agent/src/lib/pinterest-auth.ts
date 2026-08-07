@@ -20,16 +20,16 @@ export async function getValidPinterestToken(): Promise<string> {
     {
       headers: {
         Authorization: `Basic ${Buffer.from(
-          `${process.env.PINTEREST_CLIENT_ID}:${process.env.PINTEREST_CLIENT_SECRET}`
+          `${process.env.PINTEREST_CLIENT_ID}:${process.env.PINTEREST_CLIENT_SECRET}`,
         ).toString("base64")}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-    }
+    },
   );
 
   cachedToken = response.data.access_token;
   // Pinterest returns expires_in (seconds)
   expiresAt = now + response.data.expires_in * 1000;
 
-  return cachedToken;
+  return cachedToken ?? "";
 }

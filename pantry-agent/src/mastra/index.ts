@@ -1,37 +1,38 @@
-
-import { Mastra } from '@mastra/core/mastra';
-import { PinoLogger } from '@mastra/loggers';
-import { LibSQLStore } from '@mastra/libsql';
+import { Mastra } from "@mastra/core/mastra";
+import { PinoLogger } from "@mastra/loggers";
+import { LibSQLStore } from "@mastra/libsql";
 import { DuckDBStore } from "@mastra/duckdb";
-import { MastraCompositeStore } from '@mastra/core/storage';
-import { Observability, MastraStorageExporter, MastraPlatformExporter, SensitiveDataFilter } from '@mastra/observability';
-import { weatherWorkflow } from './workflows/weather-workflow';
-import { weatherAgent } from './agents/weather-agent';
-import { pantryAgent } from './agents/pantry-agent';
-import { toolCallAppropriatenessScorer, completenessScorer, translationScorer } from './scorers/weather-scorer';
+import { MastraCompositeStore } from "@mastra/core/storage";
+import {
+  Observability,
+  MastraStorageExporter,
+  MastraPlatformExporter,
+  SensitiveDataFilter,
+} from "@mastra/observability";
+import { pantryAgent } from "./agents/pantry-agent";
 
 export const mastra = new Mastra({
-  workflows: { weatherWorkflow },
-  agents: { weatherAgent , pantryAgent},
-  scorers: { toolCallAppropriatenessScorer, completenessScorer, translationScorer },
+  workflows: {},
+  agents: { pantryAgent },
+  scorers: {},
   storage: new MastraCompositeStore({
-    id: 'composite-storage',
+    id: "composite-storage",
     default: new LibSQLStore({
       id: "mastra-storage",
       url: "file:./mastra.db",
     }),
     domains: {
-      observability: await new DuckDBStore().getStore('observability'),
-    }
+      observability: await new DuckDBStore().getStore("observability"),
+    },
   }),
   logger: new PinoLogger({
-    name: 'Mastra',
-    level: 'info',
+    name: "Mastra",
+    level: "info",
   }),
   observability: new Observability({
     configs: {
       default: {
-        serviceName: 'mastra',
+        serviceName: "mastra",
         exporters: [
           new MastraStorageExporter(), // Persists observability events to Mastra Storage
           new MastraPlatformExporter(), // Sends observability events to Mastra Platform (if MASTRA_PLATFORM_ACCESS_TOKEN is set)

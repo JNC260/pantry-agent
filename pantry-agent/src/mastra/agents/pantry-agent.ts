@@ -2,7 +2,8 @@ import { Agent } from "@mastra/core/agent";
 import { Memory } from "@mastra/memory";
 import { weatherTool } from "../tools/weather-tool";
 import { scorers } from "../scorers/weather-scorer";
-import { getMyBoardsTool, getPinsFromBoardTool } from "../tools/pantry-tools";
+import { getPinsFromBoardTool } from "../tools/getPins";
+import { getMyBoardsTool } from "../tools/getBoards";
 import { extractRecipeTool } from "../tools/extractRecipe";
 
 export const pantryAgent = new Agent({
