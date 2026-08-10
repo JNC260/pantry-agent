@@ -123,3 +123,29 @@ export async function getAllCachedBoardIds(): Promise<string[]> {
   const boards = await getCachedBoards();
   return boards.map((b) => b.id);
 }
+
+export async function searchCachedPins(query: string, boardId?: string) {
+  await ensureTables();
+
+  const lowerQuery = query.toLowerCase();
+
+  const boardIds = boardId ? [boardId] : await getAllCachedBoardIds();
+
+  const matches: {
+    id: string;
+    title: string | null;
+    sourceLink: string | null;
+    boardId: string;
+  }[] = [];
+
+  for (const id of boardIds) {
+    const pins = await getCachedPins(id);
+    for (const pin of pins) {
+      if (pin.title && pin.title.toLowerCase().includes(lowerQuery)) {
+        matches.push({ ...pin, boardId: id });
+      }
+    }
+  }
+
+  return matches;
+}
