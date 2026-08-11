@@ -25,6 +25,7 @@
     "@mastra/loggers": "^1.2.0",
     "@mastra/memory": "^1.22.2",
     "@mastra/observability": "^1.16.0",
+    "@mastra/tavily": "^1.1.1",
     "axios": "^1.18.1",
     "zod": "^4.4.3"
   },
