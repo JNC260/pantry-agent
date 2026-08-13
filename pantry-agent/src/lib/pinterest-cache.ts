@@ -1,14 +1,19 @@
 import { createClient } from "@libsql/client";
+import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
+const dbPath =
+  process.env.PINTEREST_CACHE_DB_PATH ??
+  join(process.cwd(), "pinterest-cache.db");
 const client = createClient({
-  url: "file:./pinterest-cache.db",
+  url: `file:${dbPath}`,
 });
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 let initialized = false;
 
-async function ensureTables() {
+export async function ensureTables() {
   if (initialized) return;
 
   await client.batch(
@@ -148,4 +153,12 @@ export async function searchCachedPins(query: string, boardId?: string) {
   }
 
   return matches;
+}
+export async function getBoardNameMap(): Promise<Record<string, string>> {
+  const boards = await getCachedBoards();
+  const map: Record<string, string> = {};
+  for (const b of boards) {
+    map[b.id] = b.name;
+  }
+  return map;
 }
