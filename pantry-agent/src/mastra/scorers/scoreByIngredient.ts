@@ -39,10 +39,14 @@ export async function scoredSearchByIngredients(
       } catch (e) {}
 
       const searchableText = `${titleText} ${boardName}`.toLowerCase();
-      console.log("TEXT", searchableText);
-      const matched = ingredients.filter((ing) =>
-        searchableText.includes(ing.toLowerCase()),
-      );
+
+      const matched = ingredients.filter((ing) => {
+        const tokens = ing
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((t) => t.length >= 3);
+        return tokens.some((token) => searchableText.includes(token));
+      });
 
       if (matched.length === 0) continue;
 

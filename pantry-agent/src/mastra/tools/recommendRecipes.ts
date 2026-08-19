@@ -1,4 +1,4 @@
-import { createTool } from "@mastra/core/tools";
+import { createTool, isValidationError } from "@mastra/core/tools";
 import { z } from "zod";
 import { scoredSearchByIngredients } from "../scorers/scoreByIngredient";
 import { extractRecipeTool } from "./extractRecipe";
@@ -49,13 +49,22 @@ export const recommendRecipesTool = createTool({
     for (const candidate of toExtract) {
       if (!candidate.sourceLink) continue;
 
+      let extracted:
+        | Awaited<ReturnType<NonNullable<typeof extractRecipeTool.execute>>>
+        | undefined;
+
       try {
-        const recipe = await extractRecipeTool.execute(
+        extracted = await extractRecipeTool.execute?.(
           { url: candidate.sourceLink },
           context,
         );
+      } catch (err) {
+        console.error(`Extraction failed for ${candidate.sourceLink}:`, err);
+        // fall through to the link-only fallback below
+      }
 
-        const extractedItems = recipe.ingredients.map((i) =>
+      if (extracted && !isValidationError(extracted)) {
+        const extractedItems = extracted.ingredients.map((i) =>
           i.item.toLowerCase(),
         );
 
@@ -64,15 +73,22 @@ export const recommendRecipesTool = createTool({
         );
 
         verified.push({
-          title: recipe.title,
+          title: extracted.title,
           sourceLink: candidate.sourceLink,
           boardName: candidate.boardName,
           matchedOnHandIngredients: matchedOnHand,
           overlapScore: matchedOnHand.length,
         });
-      } catch (err) {
-        console.error(`Extraction failed for ${candidate.sourceLink}:`, err);
-        // one bad/unreachable pin shouldn't sink the whole recommendation — skip and continue
+      } else {
+        // extraction failed or returned nothing usable, offer the link
+        // using the title/board match we already have from search
+        verified.push({
+          title: candidate.title ?? `Recipe from ${candidate.boardName}`,
+          sourceLink: candidate.sourceLink,
+          boardName: candidate.boardName,
+          matchedOnHandIngredients: candidate.matchedIngredients,
+          overlapScore: candidate.matchedIngredients.length,
+        });
       }
     }
 

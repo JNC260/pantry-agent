@@ -54,7 +54,7 @@ export const extractRecipeTool = createTool({
 
     let extractionAgent;
     try {
-      extractionAgent = mastra.getAgent("pantryAgent");
+      extractionAgent = mastra.getAgent("recipeExtractionAgent");
       console.log("STEP 4: agent found?", Boolean(extractionAgent));
     } catch (err) {
       console.error("STEP 4 FAIL: getAgent threw:", err);

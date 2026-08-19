@@ -10,10 +10,11 @@ import {
   SensitiveDataFilter,
 } from "@mastra/observability";
 import { pantryAgent } from "./agents/pantry-agent";
+import { recipeExtractionAgent } from "./agents/extraction-agent";
 
 export const mastra = new Mastra({
   workflows: {},
-  agents: { pantryAgent },
+  agents: { pantryAgent, recipeExtractionAgent },
   scorers: {},
   storage: new MastraCompositeStore({
     id: "composite-storage",
