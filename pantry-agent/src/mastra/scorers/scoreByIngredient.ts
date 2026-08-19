@@ -39,6 +39,7 @@ export async function scoredSearchByIngredients(
       } catch (e) {}
 
       const searchableText = `${titleText} ${boardName}`.toLowerCase();
+      console.log("TEXT", searchableText);
       const matched = ingredients.filter((ing) =>
         searchableText.includes(ing.toLowerCase()),
       );

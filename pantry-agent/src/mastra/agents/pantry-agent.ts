@@ -4,6 +4,7 @@ import { getBoardsTool } from "../tools/getBoards";
 import { extractRecipeTool } from "../tools/extractRecipe";
 import { searchPinsTool } from "../tools/searchPins";
 import { webSearchTool } from "../tools/webSearchTool";
+import { recommendRecipesTool } from "../tools/recommendRecipes";
 
 export const pantryAgent = new Agent({
   id: "pantry-agent",
@@ -37,6 +38,16 @@ Use the web-search tool only when the user is asking about recipes and search-pi
 (or the recommend-recipes tool, once you build it) found nothing relevant in their
 own Pinterest pins. Always tell the user clearly when a recommendation came from
 the web rather than from their own saved pins.
+
+When the user tells you what ingredients they have on hand and asks what to make,
+call recommend-recipes with those ingredients. Present the results as a short,
+friendly summary of 2-3 recipes, each with its title, which board it came from,
+which of the user's ingredients it uses, and a link.
+
+If recommend-recipes returns an empty recommendations array, that means nothing
+in the user's own pins was a good match. In that case, use the web-search tool to
+find 2-3 recipes for those ingredients instead, and say clearly that these came
+from the web rather than the user's saved pins.
   `,
   model: "anthropic/claude-sonnet-4-6",
   tools: {
@@ -45,5 +56,6 @@ the web rather than from their own saved pins.
     extractRecipeTool,
     searchPinsTool,
     webSearchTool,
+    recommendRecipesTool,
   },
 });
