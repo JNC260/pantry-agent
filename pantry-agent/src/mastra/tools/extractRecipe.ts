@@ -1,6 +1,6 @@
-import { createTool } from "@mastra/core/tools";
+import { createTool, isValidationError } from "@mastra/core/tools";
+import { createTavilyExtractTool } from "@mastra/tavily";
 import { z } from "zod";
-import axios from "axios";
 
 const recipeSchema = z.object({
   title: z.string(),
@@ -19,6 +19,8 @@ const recipeSchema = z.object({
   totalTimeMinutes: z.number().nullable(),
 });
 
+const tavilyExtractTool = createTavilyExtractTool();
+
 export const extractRecipeTool = createTool({
   id: "extract-recipe",
   description:
@@ -27,49 +29,61 @@ export const extractRecipeTool = createTool({
     url: z.string().describe("The URL of the recipe page to fetch and parse"),
   }),
   outputSchema: recipeSchema,
-  execute: async (data, { mastra }) => {
+  execute: async (data, context) => {
     const { url } = data;
-    console.log("STEP 1: starting fetch", url);
+    const { mastra } = context;
 
-    const pageResponse = await axios.get(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        Referer: "https://www.google.com/",
-      },
-    });
-    console.log("STEP 2: fetch done", pageResponse.status);
+    console.log("STEP 1: starting extract", url);
 
-    const html = pageResponse.data;
-    console.log("STEP 3: html length", html.length);
+    const extractResult = await tavilyExtractTool.execute?.(
+      { urls: [url], extractDepth: "advanced", format: "markdown" },
+      context,
+    );
+
+    if (!extractResult || isValidationError(extractResult)) {
+      throw new Error(
+        `Tavily extract failed or returned invalid data for ${url}`,
+      );
+    }
+
+    const [failure] = extractResult.failedResults;
+    if (failure) {
+      throw new Error(`Tavily could not extract ${url}: ${failure.error}`);
+    }
+
+    const [pageContent] = extractResult.results;
+    if (!pageContent) {
+      throw new Error(`Tavily returned no content for ${url}`);
+    }
+
+    console.log(
+      "STEP 2: extract done, content length",
+      pageContent.rawContent.length,
+    );
 
     if (!mastra) {
-      console.error("STEP 4 FAIL: mastra is undefined in tool context");
+      console.error("STEP 3 FAIL: mastra is undefined in tool context");
       throw new Error("mastra context not available in tool execution");
     }
 
     let extractionAgent;
     try {
       extractionAgent = mastra.getAgent("recipeExtractionAgent");
-      console.log("STEP 4: agent found?", Boolean(extractionAgent));
+      console.log("STEP 3: agent found?", Boolean(extractionAgent));
     } catch (err) {
-      console.error("STEP 4 FAIL: getAgent threw:", err);
+      console.error("STEP 3 FAIL: getAgent threw:", err);
       throw err;
     }
 
     try {
       const result = await extractionAgent.generate(
-        `Extract the recipe...\n\nHTML:\n${html.slice(0, 15000)}`,
+        `Extract the recipe from this page content...\n\nCONTENT:\n${pageContent.rawContent.slice(0, 15000)}`,
         { structuredOutput: { schema: recipeSchema } },
       );
-      console.log("STEP 5: generate done");
+      console.log("STEP 4: generate done");
       return result.object;
     } catch (err) {
-      console.error("STEP 5 FAIL", err);
+      console.error("STEP 4 FAIL", err);
       throw err;
     }
   },
