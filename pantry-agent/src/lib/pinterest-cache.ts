@@ -1,12 +1,13 @@
 import { createClient } from "@libsql/client";
-import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
-const dbPath =
-  process.env.PINTEREST_CACHE_DB_PATH ??
-  join(process.cwd(), "pinterest-cache.db");
+const dbUrl =
+  process.env.PINTEREST_CACHE_DB_URL ??
+  `file:${process.env.PINTEREST_CACHE_DB_PATH ?? join(process.cwd(), "pinterest-cache.db")}`;
+
 const client = createClient({
-  url: `file:${dbPath}`,
+  url: dbUrl,
+  authToken: process.env.PINTEREST_CACHE_DB_AUTH_TOKEN,
 });
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
