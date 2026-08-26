@@ -1,0 +1,8 @@
+{
+  "name": "pantry-agent-repo",
+  "private": true,
+  "workspaces": [
+    "pantry-agent",
+    "api"
+  ]
+}

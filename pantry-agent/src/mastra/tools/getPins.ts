@@ -1,12 +1,12 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import axios from "axios";
-import { getValidPinterestToken } from "../../lib/pinterest-auth";
+import { getValidPinterestToken } from "../../lib/pinterest-auth.js";
 import {
   getCachedPins,
   pinsAreFresh,
   replaceCachedPins,
-} from "../../lib/pinterest-cache";
+} from "../../lib/pinterest-cache.js";
 
 export const getPinsFromBoardTool = createTool({
   id: "get-pins-from-board",

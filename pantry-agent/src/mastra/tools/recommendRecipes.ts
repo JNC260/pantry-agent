@@ -1,7 +1,7 @@
 import { createTool, isValidationError } from "@mastra/core/tools";
 import { z } from "zod";
-import { scoredSearchByIngredients } from "../scorers/scoreByIngredient";
-import { extractRecipeTool } from "./extractRecipe";
+import { scoredSearchByIngredients } from "../scorers/scoreByIngredient.js";
+import { extractRecipeTool } from "./extractRecipe.js";
 
 const MAX_CANDIDATES_TO_EXTRACT = 5;
 const MAX_RECOMMENDATIONS = 3;

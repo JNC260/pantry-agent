@@ -2,7 +2,7 @@ import {
   ensureTables,
   getBoardNameMap,
   getCachedPins,
-} from "../../lib/pinterest-cache";
+} from "../../lib/pinterest-cache.js";
 
 export type ScoredCandidate = {
   id: string;

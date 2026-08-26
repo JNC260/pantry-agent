@@ -1,10 +1,10 @@
 import { Agent } from "@mastra/core/agent";
-import { getPinsFromBoardTool } from "../tools/getPins";
-import { getBoardsTool } from "../tools/getBoards";
-import { extractRecipeTool } from "../tools/extractRecipe";
-import { searchPinsTool } from "../tools/searchPins";
-import { webSearchTool } from "../tools/webSearchTool";
-import { recommendRecipesTool } from "../tools/recommendRecipes";
+import { getPinsFromBoardTool } from "../tools/getPins.js";
+import { getBoardsTool } from "../tools/getBoards.js";
+import { extractRecipeTool } from "../tools/extractRecipe.js";
+import { searchPinsTool } from "../tools/searchPins.js";
+import { webSearchTool } from "../tools/webSearchTool.js";
+import { recommendRecipesTool } from "../tools/recommendRecipes.js";
 
 export const pantryAgent = new Agent({
   id: "pantry-agent",

@@ -9,8 +9,8 @@ import {
   MastraPlatformExporter,
   SensitiveDataFilter,
 } from "@mastra/observability";
-import { pantryAgent } from "./agents/pantry-agent";
-import { recipeExtractionAgent } from "./agents/extraction-agent";
+import { pantryAgent } from "./agents/pantry-agent.js";
+import { recipeExtractionAgent } from "./agents/extraction-agent.js";
 
 export const mastra = new Mastra({
   workflows: {},
