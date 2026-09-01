@@ -19,8 +19,6 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false,
-    "allowImportingTsExtensions": true,
-    "rewriteRelativeImportExtensions": true
+    "noFallthroughCasesInSwitch": false
   }
 }
