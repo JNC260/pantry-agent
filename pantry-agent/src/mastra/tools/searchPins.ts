@@ -1,6 +1,6 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { searchCachedPins } from "../../lib/pinterest-cache.js";
+import { searchCachedPins } from "../../lib/pinterest-cache";
 
 export const searchPinsTool = createTool({
   id: "search-pins",

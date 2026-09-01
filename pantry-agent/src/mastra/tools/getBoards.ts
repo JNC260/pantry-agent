@@ -1,12 +1,12 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import axios from "axios";
-import { getValidPinterestToken } from "../../lib/pinterest-auth.js";
+import { getValidPinterestToken } from "../../lib/pinterest-auth";
 import {
   replaceCachedBoards,
   boardsAreFresh,
   getCachedBoards,
-} from "../../lib/pinterest-cache.js";
+} from "../../lib/pinterest-cache";
 
 export const getBoardsTool = createTool({
   id: "get-boards",
