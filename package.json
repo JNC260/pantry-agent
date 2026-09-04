@@ -3,6 +3,7 @@
   "private": true,
   "workspaces": [
     "pantry-agent",
-    "api"
+    "api",
+    "web"
   ]
 }
