@@ -1,9 +1,13 @@
 import { createClient } from "@libsql/client";
-import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = join(__dirname, "..", ".."); // src/lib -> src -> project root
 
 const dbUrl =
   process.env.PINTEREST_CACHE_DB_URL ??
-  `file:${process.env.PINTEREST_CACHE_DB_PATH ?? join(process.cwd(), "pinterest-cache.db")}`;
+  `file:${process.env.PINTEREST_CACHE_DB_PATH ?? join(PROJECT_ROOT, "pinterest-cache.db")}`;
 
 const client = createClient({
   url: dbUrl,

@@ -2,6 +2,13 @@ import { createTool, isValidationError } from "@mastra/core/tools";
 import { z } from "zod";
 import { scoredSearchByIngredients } from "../scorers/scoreByIngredient";
 import { extractRecipeTool } from "./extractRecipe";
+import { getBoardsTool } from "./getBoards";
+import { getPinsFromBoardTool } from "./getPins";
+import {
+  getCachedBoards,
+  getCachedPins,
+  getAllCachedBoardIds,
+} from "../../lib/pinterest-cache";
 
 const MAX_CANDIDATES_TO_EXTRACT = 5;
 const MAX_RECOMMENDATIONS = 3;
@@ -30,7 +37,33 @@ export const recommendRecipesTool = createTool({
   execute: async (inputData, context) => {
     const { ingredients } = inputData;
 
-    const candidates = await scoredSearchByIngredients(ingredients);
+    // Cold start: nothing cached at all yet — seed the boards list.
+    const existingBoards = await getCachedBoards();
+    if (existingBoards.length === 0) {
+      await getBoardsTool.execute?.({}, context);
+    }
+
+    let candidates = await scoredSearchByIngredients(ingredients);
+
+    if (candidates.length === 0) {
+      // Boards might exist but their pins were never fetched. Only fetch
+      // boards with zero cached pins — never re-fetch a board that's
+      // already been checked and genuinely has no match.
+      const allBoardIds = await getAllCachedBoardIds();
+      let fetchedAny = false;
+
+      for (const boardId of allBoardIds) {
+        const pins = await getCachedPins(boardId);
+        if (pins.length === 0) {
+          await getPinsFromBoardTool.execute?.({ boardId }, context);
+          fetchedAny = true;
+        }
+      }
+
+      if (fetchedAny) {
+        candidates = await scoredSearchByIngredients(ingredients);
+      }
+    }
 
     if (candidates.length === 0) {
       return { recommendations: [] };
