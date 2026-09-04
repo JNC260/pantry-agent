@@ -9,6 +9,8 @@ const dbUrl =
   process.env.PINTEREST_CACHE_DB_URL ??
   `file:${process.env.PINTEREST_CACHE_DB_PATH ?? join(PROJECT_ROOT, "pinterest-cache.db")}`;
 
+console.log("PINTEREST CACHE DB PATH:", dbUrl);
+
 const client = createClient({
   url: dbUrl,
   authToken: process.env.PINTEREST_CACHE_DB_AUTH_TOKEN,
