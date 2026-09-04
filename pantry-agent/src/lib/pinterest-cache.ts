@@ -57,6 +57,7 @@ async function isFresh(
   });
   if (result.rows.length === 0) return false;
   const fetchedAt = Number(result.rows[0].fetched_at);
+  console.log("FETCHED AT", fetchedAt);
   return Date.now() - fetchedAt < maxAgeMs;
 }
 
@@ -81,6 +82,7 @@ export async function boardsAreFresh(maxAgeMs?: number) {
 export async function replaceCachedBoards(
   boards: { id: string; name: string }[],
 ) {
+  console.log("WRITING BOARDS TO CACHE:", boards.length, dbUrl);
   await ensureTables();
   await client.batch(
     [

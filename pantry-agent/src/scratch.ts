@@ -1,4 +1,6 @@
+import "dotenv/config";
 import { getCachedBoards, getCachedPins } from "./lib/pinterest-cache";
+// ...rest unchanged
 
 async function main() {
   const boards = await getCachedBoards();
