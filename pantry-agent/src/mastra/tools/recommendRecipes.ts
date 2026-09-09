@@ -12,6 +12,7 @@ import {
 
 const MAX_CANDIDATES_TO_EXTRACT = 5;
 const MAX_RECOMMENDATIONS = 3;
+const MIN_OVERLAP_RATIO = 0.5; // must match strictly more than half the stated ingredients
 
 export const recommendRecipesTool = createTool({
   id: "recommend-recipes",
@@ -124,10 +125,13 @@ export const recommendRecipesTool = createTool({
         });
       }
     }
+    const qualifying = verified.filter(
+      (v) => v.overlapScore / ingredients.length > MIN_OVERLAP_RATIO,
+    );
 
-    verified.sort((a, b) => b.overlapScore - a.overlapScore);
+    qualifying.sort((a, b) => b.overlapScore - a.overlapScore);
 
-    const recommendations = verified
+    const recommendations = qualifying
       .slice(0, MAX_RECOMMENDATIONS)
       .map(({ overlapScore, ...rest }) => rest);
 
