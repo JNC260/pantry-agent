@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "../components/Button";
+import { TextField } from "../components/TextField";
+import { Card } from "../components/Card";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
@@ -36,24 +39,30 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3 w-64">
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          className="border rounded px-3 py-2"
-        />
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-black text-white rounded px-3 py-2 disabled:opacity-50"
-        >
-          {loading ? "Logging in…" : "Log in"}
-        </button>
-      </form>
+    <main className="flex min-h-screen items-center justify-center px-6">
+      <Card className="w-full max-w-sm">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-lg font-semibold text-foreground">
+              Log in
+            </h1>
+            <p className="text-sm text-muted">
+              Enter the password to access Pantry Agent.
+            </p>
+          </div>
+          <TextField
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            autoFocus
+          />
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <Button type="submit" disabled={loading}>
+            {loading ? "Logging in…" : "Log in"}
+          </Button>
+        </form>
+      </Card>
     </main>
   );
 }
