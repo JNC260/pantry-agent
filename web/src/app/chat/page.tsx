@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authedFetch } from "@/lib/api";
-import { Button } from "../components/Button";
-import { TextField } from "../components/TextField";
+import { Button, TextField } from "@/components/ui";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -48,8 +47,9 @@ export default function ChatPage() {
 
   return (
     <main className="flex flex-col h-screen max-w-2xl mx-auto w-full">
-      <header className="border-b border-border px-4 py-3">
-        <h1 className="text-sm font-semibold text-foreground">
+      <header className="flex items-center gap-2 border-b border-border px-4 py-3">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
+        <h1 className="font-display text-base font-semibold tracking-tight text-foreground">
           Pantry Agent
         </h1>
       </header>
@@ -66,8 +66,8 @@ export default function ChatPage() {
             key={i}
             className={
               m.role === "user"
-                ? "self-end bg-accent text-accent-foreground rounded-app px-3 py-2 max-w-[80%] text-sm leading-relaxed"
-                : "self-start bg-surface border border-border text-foreground rounded-app px-3 py-2 max-w-[80%] text-sm leading-relaxed"
+                ? "self-end bg-accent text-accent-foreground rounded-tl-app rounded-tr-app rounded-bl-app rounded-br-sm px-3 py-2 max-w-[80%] text-sm leading-relaxed"
+                : "self-start bg-surface border border-border text-foreground rounded-tl-app rounded-tr-app rounded-br-app rounded-bl-sm px-3 py-2 max-w-[80%] text-sm leading-relaxed"
             }
           >
             {m.content}

@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { Button } from "./components/Button";
+import { Button } from "@/components/ui";
 
 export default function LandingPage() {
   return (
     <main className="max-w-2xl mx-auto px-6 py-16 flex flex-col gap-8">
       <div className="flex flex-col gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+        <h1 className="font-display text-4xl font-medium tracking-tight text-foreground">
           Pantry Agent
         </h1>
         <p className="text-base leading-relaxed text-muted">
