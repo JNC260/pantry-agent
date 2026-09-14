@@ -1,5 +1,10 @@
 import { Injectable, BadGatewayException } from '@nestjs/common';
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 interface AgentGenerateResponse {
   text: string;
 }
@@ -9,7 +14,7 @@ export class ChatService {
   private readonly mastraUrl =
     process.env.MASTRA_SERVER_URL ?? 'http://localhost:4111';
 
-  async sendMessage(message: string): Promise<string> {
+  async sendMessage(messages: ChatMessage[]): Promise<string> {
     let response: Response;
 
     try {
@@ -18,9 +23,7 @@ export class ChatService {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: [{ role: 'user', content: message }],
-          }),
+          body: JSON.stringify({ messages }),
         },
       );
     } catch (err) {

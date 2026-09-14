@@ -24,6 +24,7 @@ export default function ChatPage() {
     if (!input.trim() || sending) return;
 
     const userMessage: Message = { role: "user", content: input };
+    const history = [...messages, userMessage];
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setSending(true);
@@ -31,7 +32,7 @@ export default function ChatPage() {
     try {
       const res = await authedFetch("/chat", {
         method: "POST",
-        body: JSON.stringify({ message: userMessage.content }),
+        body: JSON.stringify({ messages: history }),
       });
       const { reply } = await res.json();
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
