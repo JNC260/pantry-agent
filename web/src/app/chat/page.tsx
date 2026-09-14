@@ -2,10 +2,40 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { authedFetch } from "@/lib/api";
 import { Button, TextField } from "@/components/ui";
 
 type Message = { role: "user" | "assistant"; content: string };
+
+const markdownComponents: Components = {
+  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+  a: ({ children, ...props }) => (
+    <a
+      {...props}
+      target="_blank"
+      rel="noreferrer"
+      className="text-accent underline underline-offset-2 hover:opacity-80 break-words"
+    >
+      {children}
+    </a>
+  ),
+  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  ul: ({ children }) => (
+    <ul className="mb-2 last:mb-0 list-disc pl-4">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="mb-2 last:mb-0 list-decimal pl-4">{children}</ol>
+  ),
+  li: ({ children }) => <li className="mb-1">{children}</li>,
+  code: ({ children }) => (
+    <code className="bg-accent-soft rounded px-1 py-0.5 font-mono text-xs">
+      {children}
+    </code>
+  ),
+};
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -71,7 +101,13 @@ export default function ChatPage() {
                 : "self-start bg-surface border border-border text-foreground rounded-tl-app rounded-tr-app rounded-br-app rounded-bl-sm px-3 py-2 max-w-[80%] text-sm leading-relaxed"
             }
           >
-            {m.content}
+            {m.role === "assistant" ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                {m.content}
+              </ReactMarkdown>
+            ) : (
+              m.content
+            )}
           </div>
         ))}
         {sending && (
