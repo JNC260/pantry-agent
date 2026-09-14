@@ -51,15 +51,17 @@ export const recommendRecipesTool = createTool({
       // boards with zero cached pins — never re-fetch a board that's
       // already been checked and genuinely has no match.
       const allBoardIds = await getAllCachedBoardIds();
-      let fetchedAny = false;
-
-      for (const boardId of allBoardIds) {
-        const pins = await getCachedPins(boardId);
-        if (pins.length === 0) {
-          await getPinsFromBoardTool.execute?.({ boardId }, context);
-          fetchedAny = true;
-        }
-      }
+      const fetchResults = await Promise.all(
+        allBoardIds.map(async (boardId) => {
+          const pins = await getCachedPins(boardId);
+          if (pins.length === 0) {
+            await getPinsFromBoardTool.execute?.({ boardId }, context);
+            return true;
+          }
+          return false;
+        }),
+      );
+      const fetchedAny = fetchResults.some(Boolean);
 
       if (fetchedAny) {
         candidates = await scoredSearchByIngredients(ingredients);
@@ -72,59 +74,66 @@ export const recommendRecipesTool = createTool({
 
     const toExtract = candidates.slice(0, MAX_CANDIDATES_TO_EXTRACT);
 
-    const verified: {
+    type VerifiedCandidate = {
       title: string;
       sourceLink: string;
       boardName: string;
       matchedOnHandIngredients: string[];
       overlapScore: number;
-    }[] = [];
+    };
 
-    for (const candidate of toExtract) {
-      if (!candidate.sourceLink) continue;
+    const verifiedResults = await Promise.all(
+      toExtract.map(async (candidate): Promise<VerifiedCandidate | null> => {
+        if (!candidate.sourceLink) return null;
 
-      let extracted:
-        | Awaited<ReturnType<NonNullable<typeof extractRecipeTool.execute>>>
-        | undefined;
+        let extracted:
+          | Awaited<ReturnType<NonNullable<typeof extractRecipeTool.execute>>>
+          | undefined;
 
-      try {
-        extracted = await extractRecipeTool.execute?.(
-          { url: candidate.sourceLink },
-          context,
-        );
-      } catch (err) {
-        console.error(`Extraction failed for ${candidate.sourceLink}:`, err);
-        // fall through to the link-only fallback below
-      }
+        try {
+          extracted = await extractRecipeTool.execute?.(
+            { url: candidate.sourceLink },
+            context,
+          );
+        } catch (err) {
+          console.error(`Extraction failed for ${candidate.sourceLink}:`, err);
+          // fall through to the link-only fallback below
+        }
 
-      if (extracted && !isValidationError(extracted)) {
-        const extractedItems = extracted.ingredients.map((i) =>
-          i.item.toLowerCase(),
-        );
+        if (extracted && !isValidationError(extracted)) {
+          const extractedItems = extracted.ingredients.map((i) =>
+            i.item.toLowerCase(),
+          );
 
-        const matchedOnHand = ingredients.filter((onHand) =>
-          extractedItems.some((item) => item.includes(onHand.toLowerCase())),
-        );
+          const matchedOnHand = ingredients.filter((onHand) =>
+            extractedItems.some((item) => item.includes(onHand.toLowerCase())),
+          );
 
-        verified.push({
-          title: extracted.title,
-          sourceLink: candidate.sourceLink,
-          boardName: candidate.boardName,
-          matchedOnHandIngredients: matchedOnHand,
-          overlapScore: matchedOnHand.length,
-        });
-      } else {
+          return {
+            title: extracted.title,
+            sourceLink: candidate.sourceLink,
+            boardName: candidate.boardName,
+            matchedOnHandIngredients: matchedOnHand,
+            overlapScore: matchedOnHand.length,
+          };
+        }
+
         // extraction failed or returned nothing usable, offer the link
         // using the title/board match we already have from search
-        verified.push({
+        return {
           title: candidate.title ?? `Recipe from ${candidate.boardName}`,
           sourceLink: candidate.sourceLink,
           boardName: candidate.boardName,
           matchedOnHandIngredients: candidate.matchedIngredients,
           overlapScore: candidate.matchedIngredients.length,
-        });
-      }
-    }
+        };
+      }),
+    );
+
+    const verified = verifiedResults.filter(
+      (v): v is VerifiedCandidate => v !== null,
+    );
+
     const qualifying = verified.filter(
       (v) => v.overlapScore / ingredients.length > MIN_OVERLAP_RATIO,
     );
