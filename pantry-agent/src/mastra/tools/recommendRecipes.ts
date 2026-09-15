@@ -1,6 +1,5 @@
 import { createTool, isValidationError } from "@mastra/core/tools";
 import { z } from "zod";
-import { scoredSearchByIngredients } from "../scorers/scoreByIngredient";
 import { extractRecipeTool } from "./extractRecipe";
 import { getBoardsTool } from "./getBoards";
 import { getPinsFromBoardTool } from "./getPins";
@@ -8,21 +7,26 @@ import {
   getCachedBoards,
   getCachedPins,
   getAllCachedBoardIds,
+  getAllCachedPinsLightweight,
 } from "../../lib/pinterest-cache";
+import { pinSelectionAgent } from "../agents/pin-selection-agent";
+
+const selectionSchema = z.object({
+  selectedPinIds: z.array(z.string()),
+});
 
 const MAX_CANDIDATES_TO_EXTRACT = 5;
 const MAX_RECOMMENDATIONS = 3;
-const MIN_OVERLAP_RATIO = 0.5; // must match strictly more than half the stated ingredients
 
 export const recommendRecipesTool = createTool({
   id: "recommend-recipes",
   description:
-    "Given a list of ingredients the user has on hand, searches the user's cached Pinterest pins for matching recipes, verifies the top candidates by extracting their real ingredient lists, and returns the best 2-3 matches. Returns an empty recommendations array if nothing in the user's pins is a good match — in that case, fall back to the web-search tool instead.",
+    "Given what the user has on hand and/or what they're in the mood for, searches the user's cached Pinterest pins for matching recipes and returns the best matches with real extracted details. Returns an empty recommendations array if nothing in the user's pins looks like a good fit — in that case, fall back to the web-search tool instead.",
   inputSchema: z.object({
     ingredients: z
       .array(z.string())
       .describe(
-        "Ingredients the user currently has on hand, e.g. ['chicken breast', 'kale']",
+        "Ingredients the user currently has on hand, and/or style/cuisine preferences, e.g. ['chicken breast', 'kale'] or ['chicken', 'asian']",
       ),
   }),
   outputSchema: z.object({
@@ -44,12 +48,35 @@ export const recommendRecipesTool = createTool({
       await getBoardsTool.execute?.({}, context);
     }
 
-    let candidates = await scoredSearchByIngredients(ingredients);
+    async function selectCandidates() {
+      const allPins = await getAllCachedPinsLightweight();
+      if (allPins.length === 0) return [];
+
+      const selectionPrompt = `The user has these ingredients/preferences: ${ingredients.join(", ")}.
+
+Here are their saved pins (id | title | board name):
+${allPins.map((p) => `${p.id} | ${p.title ?? "(untitled)"} | ${p.boardName}`).join("\n")}
+
+Select up to ${MAX_CANDIDATES_TO_EXTRACT} pin IDs that look like genuinely good candidates, ordered from best to worst fit.`;
+
+      const selection = await pinSelectionAgent.generate(selectionPrompt, {
+        structuredOutput: { schema: selectionSchema },
+      });
+
+      const selectedIds = new Set(selection.object.selectedPinIds);
+      // preserve the agent's own ordering, not the cache's arbitrary order
+      return selection.object.selectedPinIds
+        .map((id) => allPins.find((p) => p.id === id))
+        .filter((p): p is NonNullable<typeof p> => !!p && !!p.sourceLink);
+    }
+
+    let candidates = await selectCandidates();
 
     if (candidates.length === 0) {
-      // Boards might exist but their pins were never fetched. Only fetch
+      // Boards might exist but their pins were never fetched (or the
+      // selection agent genuinely found nothing promising). Only fetch
       // boards with zero cached pins — never re-fetch a board that's
-      // already been checked and genuinely has no match.
+      // already been checked.
       const allBoardIds = await getAllCachedBoardIds();
       const fetchResults = await Promise.all(
         allBoardIds.map(async (boardId) => {
@@ -64,7 +91,7 @@ export const recommendRecipesTool = createTool({
       const fetchedAny = fetchResults.some(Boolean);
 
       if (fetchedAny) {
-        candidates = await scoredSearchByIngredients(ingredients);
+        candidates = await selectCandidates();
       }
     }
 
@@ -74,75 +101,52 @@ export const recommendRecipesTool = createTool({
 
     const toExtract = candidates.slice(0, MAX_CANDIDATES_TO_EXTRACT);
 
-    type VerifiedCandidate = {
+    type Recommendation = {
       title: string;
       sourceLink: string;
       boardName: string;
       matchedOnHandIngredients: string[];
-      overlapScore: number;
     };
 
-    const verifiedResults = await Promise.all(
-      toExtract.map(async (candidate): Promise<VerifiedCandidate | null> => {
+    const results = await Promise.all(
+      toExtract.map(async (candidate): Promise<Recommendation | null> => {
         if (!candidate.sourceLink) return null;
 
-        let extracted:
-          | Awaited<ReturnType<NonNullable<typeof extractRecipeTool.execute>>>
-          | undefined;
-
         try {
-          extracted = await extractRecipeTool.execute?.(
+          const extracted = await extractRecipeTool.execute?.(
             { url: candidate.sourceLink },
             context,
           );
+
+          if (extracted && !isValidationError(extracted)) {
+            return {
+              title: extracted.title,
+              sourceLink: candidate.sourceLink,
+              boardName: candidate.boardName,
+              matchedOnHandIngredients: extracted.ingredients.map(
+                (i) => i.item,
+              ),
+            };
+          }
         } catch (err) {
           console.error(`Extraction failed for ${candidate.sourceLink}:`, err);
-          // fall through to the link-only fallback below
         }
 
-        if (extracted && !isValidationError(extracted)) {
-          const extractedItems = extracted.ingredients.map((i) =>
-            i.item.toLowerCase(),
-          );
-
-          const matchedOnHand = ingredients.filter((onHand) =>
-            extractedItems.some((item) => item.includes(onHand.toLowerCase())),
-          );
-
-          return {
-            title: extracted.title,
-            sourceLink: candidate.sourceLink,
-            boardName: candidate.boardName,
-            matchedOnHandIngredients: matchedOnHand,
-            overlapScore: matchedOnHand.length,
-          };
-        }
-
-        // extraction failed or returned nothing usable, offer the link
-        // using the title/board match we already have from search
+        // extraction failed or returned nothing usable — still offer the
+        // link, since selection already judged this a good fit
         return {
           title: candidate.title ?? `Recipe from ${candidate.boardName}`,
           sourceLink: candidate.sourceLink,
           boardName: candidate.boardName,
-          matchedOnHandIngredients: candidate.matchedIngredients,
-          overlapScore: candidate.matchedIngredients.length,
+          matchedOnHandIngredients: [],
         };
       }),
     );
 
-    const verified = verifiedResults.filter(
-      (v): v is VerifiedCandidate => v !== null,
-    );
-
-    const qualifying = verified.filter(
-      (v) => v.overlapScore / ingredients.length > MIN_OVERLAP_RATIO,
-    );
-
-    qualifying.sort((a, b) => b.overlapScore - a.overlapScore);
-
-    const recommendations = qualifying
-      .slice(0, MAX_RECOMMENDATIONS)
-      .map(({ overlapScore, ...rest }) => rest);
+    // selection's own ordering is the ranking — no re-sorting needed
+    const recommendations = results
+      .filter((r): r is Recommendation => r !== null)
+      .slice(0, MAX_RECOMMENDATIONS);
 
     return { recommendations };
   },

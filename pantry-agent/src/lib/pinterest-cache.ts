@@ -57,7 +57,6 @@ async function isFresh(
   });
   if (result.rows.length === 0) return false;
   const fetchedAt = Number(result.rows[0].fetched_at);
-  console.log("FETCHED AT", fetchedAt);
   return Date.now() - fetchedAt < maxAgeMs;
 }
 
@@ -170,4 +169,30 @@ export async function getBoardNameMap(): Promise<Record<string, string>> {
     map[b.id] = b.name;
   }
   return map;
+}
+
+export type LightweightPin = {
+  id: string;
+  title: string | null;
+  boardName: string;
+  sourceLink: string | null;
+};
+
+export async function getAllCachedPinsLightweight(): Promise<LightweightPin[]> {
+  const boardNameMap = await getBoardNameMap();
+  const boardIds = Object.keys(boardNameMap);
+
+  const all: LightweightPin[] = [];
+  for (const boardId of boardIds) {
+    const pins = await getCachedPins(boardId);
+    for (const pin of pins) {
+      all.push({
+        id: pin.id,
+        title: pin.title,
+        boardName: boardNameMap[boardId] ?? "",
+        sourceLink: pin.sourceLink,
+      });
+    }
+  }
+  return all;
 }
