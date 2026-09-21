@@ -82,7 +82,10 @@ export class PantryService {
     const existing = await this.get(id);
     if (!existing) return null;
 
-    const merged = { ...existing, ...updates };
+    const definedUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([, value]) => value !== undefined),
+    );
+    const merged = { ...existing, ...definedUpdates };
 
     await pantryDb.execute({
       sql: `UPDATE pantry_items
