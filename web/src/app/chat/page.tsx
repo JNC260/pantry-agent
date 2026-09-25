@@ -6,6 +6,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { authedFetch } from "@/lib/api";
 import { Button, TextField } from "@/components/ui";
+import { AppHeader } from "@/components/AppHeader";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -78,12 +79,7 @@ export default function ChatPage() {
 
   return (
     <main className="flex flex-col h-screen max-w-2xl mx-auto w-full">
-      <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
-        <h1 className="font-display text-base font-semibold tracking-tight text-foreground">
-          Pantry Agent
-        </h1>
-      </header>
+      <AppHeader />
 
       <div className="flex-1 overflow-y-auto flex flex-col gap-3 px-4 py-4">
         {messages.length === 0 && !sending && (

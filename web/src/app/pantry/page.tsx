@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, TextField } from "@/components/ui";
+import { AppHeader } from "@/components/AppHeader";
 import {
   type PantryItem,
   listPantryItems,
@@ -158,7 +159,10 @@ export default function PantryPage() {
     }
 
     const expirationTrimmed = editDraft.expirationDate.trim();
-    if (expirationTrimmed && expirationTrimmed !== (item.expirationDate ?? "")) {
+    if (
+      expirationTrimmed &&
+      expirationTrimmed !== (item.expirationDate ?? "")
+    ) {
       updates.expirationDate = expirationTrimmed;
     }
 
@@ -207,191 +211,208 @@ export default function PantryPage() {
   }
 
   return (
-    <main className="flex flex-col min-h-screen max-w-2xl mx-auto w-full px-4 py-6 gap-6">
-      <header className="flex items-center gap-2">
-        <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
-        <h1 className="font-display text-base font-semibold tracking-tight text-foreground">
-          Pantry
-        </h1>
-      </header>
-
-      <Card>
-        <form onSubmit={handleAdd} className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold text-foreground">Add an item</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <TextField
-              value={addForm.ingredient}
-              onChange={(e) =>
-                setAddForm((f) => ({ ...f, ingredient: e.target.value }))
-              }
-              placeholder="Ingredient"
-              className="col-span-2 sm:col-span-1"
-            />
-            <TextField
-              value={addForm.quantity}
-              onChange={(e) =>
-                setAddForm((f) => ({ ...f, quantity: e.target.value }))
-              }
-              placeholder="Quantity"
-              type="number"
-            />
-            <TextField
-              value={addForm.unit}
-              onChange={(e) => setAddForm((f) => ({ ...f, unit: e.target.value }))}
-              placeholder="Unit"
-            />
-            <TextField
-              value={addForm.expirationDate}
-              onChange={(e) =>
-                setAddForm((f) => ({ ...f, expirationDate: e.target.value }))
-              }
-              type="date"
-            />
-          </div>
-          {addError && <p className="text-sm text-danger">{addError}</p>}
-          <Button type="submit" disabled={adding} className="self-start">
-            {adding ? "Adding…" : "Add item"}
-          </Button>
-        </form>
-      </Card>
-
-      {loading && <p className="text-sm text-muted">Loading your pantry…</p>}
-
-      {!loading && loadError && (
-        <Card className="flex items-center justify-between gap-3">
-          <p className="text-sm text-danger">{loadError}</p>
-          <Button variant="secondary" onClick={retryLoad}>
-            Retry
-          </Button>
+    <main className="flex flex-col min-h-screen max-w-2xl mx-auto w-full">
+      <AppHeader />
+      <div className="flex flex-col gap-6 px-4 py-6">
+        <Card>
+          <form onSubmit={handleAdd} className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-foreground">
+              Add an item
+            </h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <TextField
+                value={addForm.ingredient}
+                onChange={(e) =>
+                  setAddForm((f) => ({ ...f, ingredient: e.target.value }))
+                }
+                placeholder="Ingredient"
+                className="col-span-2 sm:col-span-1"
+              />
+              <TextField
+                value={addForm.quantity}
+                onChange={(e) =>
+                  setAddForm((f) => ({ ...f, quantity: e.target.value }))
+                }
+                placeholder="Quantity"
+                type="number"
+              />
+              <TextField
+                value={addForm.unit}
+                onChange={(e) =>
+                  setAddForm((f) => ({ ...f, unit: e.target.value }))
+                }
+                placeholder="Unit"
+              />
+              <TextField
+                value={addForm.expirationDate}
+                onChange={(e) =>
+                  setAddForm((f) => ({ ...f, expirationDate: e.target.value }))
+                }
+                type="date"
+              />
+            </div>
+            {addError && <p className="text-sm text-danger">{addError}</p>}
+            <Button type="submit" disabled={adding} className="self-start">
+              {adding ? "Adding…" : "Add item"}
+            </Button>
+          </form>
         </Card>
-      )}
 
-      {!loading && !loadError && items.length === 0 && (
-        <p className="text-sm text-muted">
-          Your pantry is empty. Add your first item above.
-        </p>
-      )}
+        {loading && <p className="text-sm text-muted">Loading your pantry…</p>}
 
-      {!loading && !loadError && items.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {items.map((item) => {
-            const isEditing = editingId === item.id;
-            const isDeleting = deletingId === item.id;
+        {!loading && loadError && (
+          <Card className="flex items-center justify-between gap-3">
+            <p className="text-sm text-danger">{loadError}</p>
+            <Button variant="secondary" onClick={retryLoad}>
+              Retry
+            </Button>
+          </Card>
+        )}
 
-            return (
-              <Card key={item.id} className="flex flex-col gap-3">
-                {isEditing && editDraft ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <TextField
-                        value={editDraft.ingredient}
-                        onChange={(e) =>
-                          setEditDraft((d) =>
-                            d ? { ...d, ingredient: e.target.value } : d,
-                          )
-                        }
-                        placeholder="Ingredient"
-                        className="col-span-2 sm:col-span-1"
-                      />
-                      <TextField
-                        value={editDraft.quantity}
-                        onChange={(e) =>
-                          setEditDraft((d) =>
-                            d ? { ...d, quantity: e.target.value } : d,
-                          )
-                        }
-                        placeholder="Quantity"
-                        type="number"
-                      />
-                      <TextField
-                        value={editDraft.unit}
-                        onChange={(e) =>
-                          setEditDraft((d) => (d ? { ...d, unit: e.target.value } : d))
-                        }
-                        placeholder="Unit"
-                      />
-                      <TextField
-                        value={editDraft.expirationDate}
-                        onChange={(e) =>
-                          setEditDraft((d) =>
-                            d ? { ...d, expirationDate: e.target.value } : d,
-                          )
-                        }
-                        type="date"
-                      />
-                    </div>
-                    {editError && <p className="text-sm text-danger">{editError}</p>}
-                    <div className="flex gap-2">
-                      <Button onClick={() => saveEdit(item)} disabled={saving}>
-                        {saving ? "Saving…" : "Save"}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        onClick={cancelEdit}
-                        disabled={saving}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-sm font-medium text-foreground">
-                        {item.ingredient}
-                      </span>
-                      <span className="text-xs text-muted">
-                        {[
-                          item.quantity !== null
-                            ? `${item.quantity}${item.unit ? ` ${item.unit}` : ""}`
-                            : item.unit,
-                          item.expirationDate ? `expires ${item.expirationDate}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ") || "No details"}
-                      </span>
-                    </div>
+        {!loading && !loadError && items.length === 0 && (
+          <p className="text-sm text-muted">
+            Your pantry is empty. Add your first item above.
+          </p>
+        )}
 
-                    {isDeleting ? (
-                      <div className="flex items-center gap-2">
-                        {deleteError && (
-                          <span className="text-xs text-danger">{deleteError}</span>
-                        )}
-                        <span className="text-sm text-foreground">
-                          Delete this item?
-                        </span>
+        {!loading && !loadError && items.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {items.map((item) => {
+              const isEditing = editingId === item.id;
+              const isDeleting = deletingId === item.id;
+
+              return (
+                <Card key={item.id} className="flex flex-col gap-3">
+                  {isEditing && editDraft ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <TextField
+                          value={editDraft.ingredient}
+                          onChange={(e) =>
+                            setEditDraft((d) =>
+                              d ? { ...d, ingredient: e.target.value } : d,
+                            )
+                          }
+                          placeholder="Ingredient"
+                          className="col-span-2 sm:col-span-1"
+                        />
+                        <TextField
+                          value={editDraft.quantity}
+                          onChange={(e) =>
+                            setEditDraft((d) =>
+                              d ? { ...d, quantity: e.target.value } : d,
+                            )
+                          }
+                          placeholder="Quantity"
+                          type="number"
+                        />
+                        <TextField
+                          value={editDraft.unit}
+                          onChange={(e) =>
+                            setEditDraft((d) =>
+                              d ? { ...d, unit: e.target.value } : d,
+                            )
+                          }
+                          placeholder="Unit"
+                        />
+                        <TextField
+                          value={editDraft.expirationDate}
+                          onChange={(e) =>
+                            setEditDraft((d) =>
+                              d ? { ...d, expirationDate: e.target.value } : d,
+                            )
+                          }
+                          type="date"
+                        />
+                      </div>
+                      {editError && (
+                        <p className="text-sm text-danger">{editError}</p>
+                      )}
+                      <div className="flex gap-2">
                         <Button
-                          variant="secondary"
-                          onClick={() => confirmDelete(item.id)}
-                          disabled={deleting}
+                          onClick={() => saveEdit(item)}
+                          disabled={saving}
                         >
-                          {deleting ? "Deleting…" : "Confirm"}
+                          {saving ? "Saving…" : "Save"}
                         </Button>
                         <Button
                           variant="secondary"
-                          onClick={cancelDelete}
-                          disabled={deleting}
+                          onClick={cancelEdit}
+                          disabled={saving}
                         >
                           Cancel
                         </Button>
                       </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <Button variant="secondary" onClick={() => startEdit(item)}>
-                          Edit
-                        </Button>
-                        <Button variant="secondary" onClick={() => startDelete(item.id)}>
-                          Delete
-                        </Button>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-medium text-foreground">
+                          {item.ingredient}
+                        </span>
+                        <span className="text-xs text-muted">
+                          {[
+                            item.quantity !== null
+                              ? `${item.quantity}${item.unit ? ` ${item.unit}` : ""}`
+                              : item.unit,
+                            item.expirationDate
+                              ? `expires ${item.expirationDate}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || "No details"}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                )}
-              </Card>
-            );
-          })}
-        </div>
-      )}
+
+                      {isDeleting ? (
+                        <div className="flex items-center gap-2">
+                          {deleteError && (
+                            <span className="text-xs text-danger">
+                              {deleteError}
+                            </span>
+                          )}
+                          <span className="text-sm text-foreground">
+                            Delete this item?
+                          </span>
+                          <Button
+                            variant="secondary"
+                            onClick={() => confirmDelete(item.id)}
+                            disabled={deleting}
+                          >
+                            {deleting ? "Deleting…" : "Confirm"}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={cancelDelete}
+                            disabled={deleting}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="secondary"
+                            onClick={() => startEdit(item)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={() => startDelete(item.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </main>
   );
 }
