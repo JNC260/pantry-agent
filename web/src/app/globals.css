@@ -1,59 +1,101 @@
 @import "tailwindcss";
 
 :root {
-  --background: #faf6f6;
-  --foreground: #241420;
-  --muted: #8c7684;
-  --border: #ece0e4;
-  --surface: #ffffff;
-  --accent: #d6295f;
-  --accent-foreground: #fff7fa;
-  --accent-soft: #fbdce6;
-  --fresh: #2f8f58;
-  --fresh-foreground: #f2fbf5;
-  --fresh-soft: #dff1e4;
-  --danger: #b23a2e;
-  --radius: 0.625rem;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-border: var(--border);
-  --color-surface: var(--surface);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent-soft: var(--accent-soft);
-  --color-fresh: var(--fresh);
-  --color-fresh-foreground: var(--fresh-foreground);
-  --color-fresh-soft: var(--fresh-soft);
-  --color-danger: var(--danger);
-  --radius-app: var(--radius);
-  --font-display: var(--font-bodoni);
-  --font-sans: var(--font-manrope);
-  --font-mono: var(--font-plex-mono);
+  --paper: #f7f1e8;
+  --linen: #efe6da;
+  --ink: #2b211e;
+  --walnut: #6b5c55;
+  --mulberry: #8c2e4c;
+  --mulberry-deep: #6e2139;
+  --on-mulberry: #fbf6ef;
+  --rosemary: #3e5a47;
+  --rosemary-fill: #3e5a47;
+  --on-rosemary: #f7f1e8;
+  --sage-wash: #dde3d5;
+  --sage-mid: #a9b89f;
+  --saffron: #8a5e12;
+  --saffron-bright: #d29b35;
+  --saffron-wash: #f2e4c6;
+  --paprika: #a3361f;
+  --rule: #dccfbf;
+  --radius: 3px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #170f14;
-    --foreground: #f7ecf1;
-    --muted: #b39aa6;
-    --border: #3a2531;
-    --surface: #221720;
-    --accent: #ff5c96;
-    --accent-foreground: #2b0817;
-    --accent-soft: #4a1830;
-    --fresh: #52c17f;
-    --fresh-foreground: #0b1f12;
-    --fresh-soft: #173423;
-    --danger: #ff6e55;
+    color-scheme: dark;
+    --paper: #1c1614;
+    --linen: #262019;
+    --ink: #eee4d8;
+    --walnut: #a8998e;
+    --mulberry: #e08ba5;
+    --mulberry-deep: #eba8bc;
+    --on-mulberry: #2a0f19;
+    --rosemary: #9fbba6;
+    --rosemary-fill: #2e4637;
+    --on-rosemary: #eee4d8;
+    --sage-wash: #232d26;
+    --sage-mid: #5e7563;
+    --saffron: #d9a94e;
+    --saffron-bright: #c8913a;
+    --saffron-wash: #342a17;
+    --paprika: #e8806a;
+    --rule: #3a302a;
   }
 }
 
+@theme inline {
+  --color-paper: var(--paper);
+  --color-linen: var(--linen);
+  --color-ink: var(--ink);
+  --color-walnut: var(--walnut);
+  --color-mulberry: var(--mulberry);
+  --color-mulberry-deep: var(--mulberry-deep);
+  --color-on-mulberry: var(--on-mulberry);
+  --color-rosemary: var(--rosemary);
+  --color-rosemary-fill: var(--rosemary-fill);
+  --color-on-rosemary: var(--on-rosemary);
+  --color-sage-wash: var(--sage-wash);
+  --color-sage-mid: var(--sage-mid);
+  --color-saffron: var(--saffron);
+  --color-saffron-bright: var(--saffron-bright);
+  --color-saffron-wash: var(--saffron-wash);
+  --color-paprika: var(--paprika);
+  --color-rule: var(--rule);
+  --radius-app: var(--radius);
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-public-sans);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-public-sans), "Segoe UI", system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+:focus-visible {
+  outline: 2px solid var(--mulberry);
+  outline-offset: 2px;
+}
+
+/* Stripe pattern of a French kitchen towel (torchon). */
+.torchon {
+  height: 16px;
+  background: linear-gradient(
+    to bottom,
+    var(--rosemary-fill) 0 4px,
+    transparent 4px 6px,
+    var(--mulberry) 6px 8px,
+    transparent 8px 10px,
+    var(--rosemary-fill) 10px 12px,
+    transparent 12px 14px,
+    var(--sage-mid) 14px 16px
+  );
 }

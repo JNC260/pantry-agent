@@ -7,17 +7,18 @@ import remarkGfm from "remark-gfm";
 import { authedFetch } from "@/lib/api";
 import { Button, TextField } from "@/components/ui";
 import { AppHeader } from "@/components/AppHeader";
+import { NestedArcs } from "@/components/graphics";
 
 type Message = { role: "user" | "assistant"; content: string };
 
 const markdownComponents: Components = {
-  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+  p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
   a: ({ children, ...props }) => (
     <a
       {...props}
       target="_blank"
       rel="noreferrer"
-      className="text-accent underline underline-offset-2 hover:opacity-80 break-words"
+      className="text-mulberry underline underline-offset-[3px] hover:text-mulberry-deep break-words"
     >
       {children}
     </a>
@@ -25,14 +26,18 @@ const markdownComponents: Components = {
   strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   ul: ({ children }) => (
-    <ul className="mb-2 last:mb-0 list-disc pl-4">{children}</ul>
+    <ul className="mb-3 last:mb-0 flex flex-col gap-1.5 [&>li]:relative [&>li]:pl-5 [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:top-[0.6em] [&>li]:before:size-2 [&>li]:before:rounded-full [&>li]:before:bg-rosemary [&>li]:before:content-['']">
+      {children}
+    </ul>
   ),
   ol: ({ children }) => (
-    <ol className="mb-2 last:mb-0 list-decimal pl-4">{children}</ol>
+    <ol className="mb-3 last:mb-0 flex flex-col gap-1.5 list-decimal pl-5 marker:text-rosemary marker:font-medium">
+      {children}
+    </ol>
   ),
-  li: ({ children }) => <li className="mb-1">{children}</li>,
+  li: ({ children }) => <li>{children}</li>,
   code: ({ children }) => (
-    <code className="bg-accent-soft rounded px-1 py-0.5 font-mono text-xs">
+    <code className="rounded-app bg-paper px-1 py-0.5 text-[0.9em]">
       {children}
     </code>
   ),
@@ -78,53 +83,74 @@ export default function ChatPage() {
   }
 
   return (
-    <main className="flex flex-col h-screen max-w-2xl mx-auto w-full">
+    <div className="flex h-screen flex-col">
       <AppHeader />
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-3 px-4 py-4">
-        {messages.length === 0 && !sending && (
-          <p className="text-sm text-muted">
-            Tell me what you have on hand and I&apos;ll find something to
-            make from your Pinterest boards.
-          </p>
-        )}
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={
-              m.role === "user"
-                ? "self-end bg-accent text-accent-foreground rounded-tl-app rounded-tr-app rounded-bl-app rounded-br-sm px-3 py-2 max-w-[80%] text-sm leading-relaxed"
-                : "self-start bg-surface border border-border text-foreground rounded-tl-app rounded-tr-app rounded-br-app rounded-bl-sm px-3 py-2 max-w-[80%] text-sm leading-relaxed"
-            }
-          >
-            {m.role === "assistant" ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                {m.content}
-              </ReactMarkdown>
-            ) : (
-              m.content
-            )}
-          </div>
-        ))}
-        {sending && (
-          <div className="self-start text-muted text-sm">Thinking…</div>
-        )}
-      </div>
+      <main className="min-h-0 flex-1 px-4 py-6 sm:px-6">
+        <div className="relative mx-auto flex h-full max-w-5xl flex-col overflow-hidden rounded-app bg-sage-wash">
+          <NestedArcs className="pointer-events-none absolute -right-16 -top-16 w-44 sm:w-64" />
 
-      <form
-        onSubmit={handleSubmit}
-        className="flex gap-2 border-t border-border p-4"
-      >
-        <TextField
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="I have chicken breast and kale, what should I make?"
-          className="flex-1"
-        />
-        <Button type="submit" disabled={sending}>
-          Send
-        </Button>
-      </form>
-    </main>
+          <div className="relative flex-1 overflow-y-auto px-5 py-10 sm:px-12">
+            <div className="flex max-w-2xl flex-col gap-7">
+              {messages.length === 0 && !sending && (
+                <div className="flex flex-col gap-2">
+                  <h1 className="font-display text-3xl font-medium">
+                    What’s in the kitchen?
+                  </h1>
+                  <p className="max-w-[52ch] text-walnut">
+                    Tell me what you have on hand and I&apos;ll find something
+                    to make from your Pinterest boards.
+                  </p>
+                </div>
+              )}
+              {messages.map((m, i) =>
+                m.role === "user" ? (
+                  <p
+                    key={i}
+                    className="max-w-[36ch] whitespace-pre-wrap font-display text-[21px] italic leading-snug text-mulberry"
+                  >
+                    {m.content}
+                  </p>
+                ) : (
+                  <div
+                    key={i}
+                    className="max-w-[62ch] border-l-2 border-rosemary pl-5"
+                  >
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={markdownComponents}
+                    >
+                      {m.content}
+                    </ReactMarkdown>
+                  </div>
+                ),
+              )}
+              {sending && (
+                <p className="font-display italic text-rosemary">
+                  Checking your boards…
+                </p>
+              )}
+            </div>
+          </div>
+
+          <form
+            onSubmit={handleSubmit}
+            className="relative flex flex-col gap-3 border-t border-sage-mid px-5 py-5 sm:flex-row sm:items-end sm:px-12"
+          >
+            <TextField
+              label="Ask about dinner"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="I have chicken breast and kale, what should I make?"
+              className="flex-1"
+              inputClassName="bg-paper"
+            />
+            <Button type="submit" disabled={sending} className="sm:self-end">
+              Send
+            </Button>
+          </form>
+        </div>
+      </main>
+    </div>
   );
 }

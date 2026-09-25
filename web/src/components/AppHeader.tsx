@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@/components/ui";
+import { Masthead } from "@/components/Masthead";
 
 const navLinks = [
   { href: "/chat", label: "Chat" },
   { href: "/pantry", label: "Pantry" },
 ];
+
+const linkBase =
+  "border-b-2 pb-1 text-[15px] transition-colors";
 
 export function AppHeader() {
   const pathname = usePathname();
@@ -19,33 +22,30 @@ export function AppHeader() {
   }
 
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
-          <span className="font-display text-base font-semibold tracking-tight text-foreground">
-            Pantry Agent
-          </span>
-        </div>
-        <nav className="flex items-center gap-4">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={
-                pathname === link.href
-                  ? "text-sm font-medium text-foreground"
-                  : "text-sm font-medium text-muted hover:text-foreground"
-              }
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-      <Button variant="secondary" onClick={handleLogout}>
-        Log out
-      </Button>
-    </header>
+    <Masthead>
+      <nav className="flex items-baseline gap-7">
+        {navLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            aria-current={pathname === link.href ? "page" : undefined}
+            className={
+              pathname === link.href
+                ? `${linkBase} border-mulberry font-medium text-ink`
+                : `${linkBase} border-transparent font-medium text-walnut hover:text-rosemary`
+            }
+          >
+            {link.label}
+          </Link>
+        ))}
+        <button
+          type="button"
+          onClick={handleLogout}
+          className={`${linkBase} cursor-pointer border-transparent text-walnut hover:text-rosemary`}
+        >
+          Log out
+        </button>
+      </nav>
+    </Masthead>
   );
 }
