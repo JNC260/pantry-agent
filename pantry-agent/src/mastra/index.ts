@@ -12,10 +12,16 @@ import {
 import { pantryAgent } from "./agents/pantry-agent";
 import { recipeExtractionAgent } from "./agents/extraction-agent";
 import { pinSelectionAgent } from "./agents/pin-selection-agent";
+import { groceryMatchAgent } from "./agents/grocery-match-agent";
 
 export const mastra = new Mastra({
   workflows: {},
-  agents: { pantryAgent, recipeExtractionAgent, pinSelectionAgent },
+  agents: {
+    pantryAgent,
+    recipeExtractionAgent,
+    pinSelectionAgent,
+    groceryMatchAgent,
+  },
   scorers: {},
   storage: new MastraCompositeStore({
     id: "composite-storage",

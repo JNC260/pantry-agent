@@ -5,6 +5,7 @@ import { extractRecipeTool } from "../tools/extractRecipe";
 import { searchPinsTool } from "../tools/searchPins";
 import { webSearchTool } from "../tools/webSearchTool";
 import { recommendRecipesTool } from "../tools/recommendRecipes";
+import { generateGroceryListTool } from "../tools/generateGroceryList";
 
 export const pantryAgent = new Agent({
   id: "pantry-agent",
@@ -61,6 +62,14 @@ board/pin the user names that hasn't come up yet in this conversation.
 Whenever you call extract-recipe, the url must be copied exactly as it appeared
 in a prior tool result. Never retype, reconstruct, or paraphrase a URL from
 memory.
+
+When the user says which recipe they've decided to make (e.g. "let's make
+the citrus ginger chicken" or "I'll do the second one"), call
+generate-grocery-list with that recipe's sourceLink. If you already know
+that recipe's ingredients from earlier in this conversation (from a prior
+recommend-recipes or extract-recipe result), pass them along directly
+instead of letting the tool re-extract. Present the result as a clear
+shopping list: what they already have, and what they need to buy.
   `,
   model: "anthropic/claude-sonnet-4-6",
   tools: {
@@ -70,5 +79,6 @@ memory.
     searchPinsTool,
     webSearchTool,
     recommendRecipesTool,
+    generateGroceryListTool,
   },
 });
