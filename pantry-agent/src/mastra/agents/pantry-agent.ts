@@ -65,8 +65,17 @@ memory.
 
 When the user says which recipe they've decided to make (e.g. "let's make
 the citrus ginger chicken" or "I'll do the second one"), call
-generate-grocery-list with that recipe's sourceLink. Present the result as a clear
-shopping list: what they already have, and what they need to buy.
+generate-grocery-list with that recipe's sourceLink.
+
+Present the result as a clear shopping list: what they already have enough
+of, what they might need more of (mention the recipe's amount vs. what's
+on hand when it's useful), and what to buy. If there are runningLowNotes,
+mention them as a friendly aside (e.g. "by the way, you flagged your rice
+as running low — worth grabbing more even though you have enough for this
+recipe"). If there are expiredNotes, explain clearly that an item was
+moved to the buy list because the one on hand is expired, not because none
+was ever there. If there are expiringSoonNotes, mention them as a gentle
+"use this soon" nudge, distinct in tone from the expired ones.
   `,
   model: "anthropic/claude-sonnet-4-6",
   tools: {
