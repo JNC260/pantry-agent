@@ -80,6 +80,7 @@ export class PantryService {
       quantity: number | null;
       unit: string | null;
       expirationDate: string | null;
+      lowStock: boolean;
     }>,
   ): Promise<PantryItem | null> {
     await ensurePantryTable();
@@ -93,13 +94,14 @@ export class PantryService {
 
     await pantryDb.execute({
       sql: `UPDATE pantry_items
-              SET ingredient = ?, quantity = ?, unit = ?, expiration_date = ?
+              SET ingredient = ?, quantity = ?, unit = ?, expiration_date = ?, low_stock = ?
               WHERE id = ? AND user_id = ?`,
       args: [
         merged.ingredient,
         merged.quantity,
         merged.unit,
         merged.expirationDate,
+        merged.lowStock,
         id,
         OWNER_ID,
       ],

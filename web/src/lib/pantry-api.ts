@@ -35,6 +35,7 @@ export async function updatePantryItem(
     quantity: number;
     unit: string;
     expirationDate: string;
+    lowStock: boolean;
   }>,
 ): Promise<PantryItem> {
   const res = await authedFetch(`/pantry/${id}`, {

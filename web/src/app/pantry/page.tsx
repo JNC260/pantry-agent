@@ -125,6 +125,12 @@ export default function PantryPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const [flaggingId, setFlaggingId] = useState<string | null>(null);
+  const [flagError, setFlagError] = useState<{
+    id: string;
+    message: string;
+  } | null>(null);
+
   useEffect(() => {
     if (!localStorage.getItem("token")) {
       router.push("/login");
@@ -273,6 +279,30 @@ export default function PantryPage() {
       setDeleteError("Couldn't delete that item. Try again.");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function setLowStock(item: PantryItem, lowStock: boolean) {
+    const replace = (next: PantryItem) =>
+      setItems((prev) => prev.map((it) => (it.id === item.id ? next : it)));
+
+    // Optimistic: show the pill change immediately, revert if the save fails.
+    replace({ ...item, lowStock });
+    setFlaggingId(item.id);
+    setFlagError(null);
+    try {
+      const updated = await updatePantryItem(item.id, { lowStock });
+      // authedFetch doesn't throw on 4xx/5xx, so an error body lands here.
+      if (updated?.id !== item.id) throw new Error("Update failed");
+      replace(updated);
+    } catch {
+      replace(item);
+      setFlagError({
+        id: item.id,
+        message: "Couldn't update low stock. Try again.",
+      });
+    } finally {
+      setFlaggingId(null);
     }
   }
 
@@ -477,13 +507,45 @@ export default function PantryPage() {
                             </div>
                           ) : (
                             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-5 gap-y-1 sm:grid-cols-[minmax(0,1fr)_110px_150px_auto]">
-                              <span className="font-display text-[19px] font-medium">
-                                {item.ingredient}
+                              <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                                <span className="font-display text-[19px] font-medium">
+                                  {item.ingredient}
+                                </span>
+                                {item.lowStock && (
+                                  <span className="inline-flex items-center gap-1 self-center rounded-full bg-saffron-wash py-0.5 pl-2.5 pr-1 text-xs font-semibold text-saffron">
+                                    Low stock
+                                    <button
+                                      type="button"
+                                      onClick={() => setLowStock(item, false)}
+                                      disabled={flaggingId === item.id}
+                                      aria-label={`Remove low stock flag from ${item.ingredient}`}
+                                      title="Remove low stock flag"
+                                      className="grid size-4 cursor-pointer place-items-center rounded-full leading-none transition-colors hover:bg-saffron hover:text-saffron-wash focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-saffron disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      <svg
+                                        aria-hidden="true"
+                                        viewBox="0 0 10 10"
+                                        className="size-2"
+                                      >
+                                        <path
+                                          d="M2 2l6 6M8 2l-6 6"
+                                          stroke="currentColor"
+                                          strokeWidth="1.6"
+                                          strokeLinecap="round"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </span>
+                                )}
                               </span>
-                              <span className="text-right text-[15px] tabular-nums">
+                              <span
+                                className={`text-right text-[15px] tabular-nums ${item.lowStock ? "text-saffron" : ""}`}
+                              >
                                 {item.quantity !== null && item.quantity}
                                 {item.unit && (
-                                  <span className="text-sm text-walnut">
+                                  <span
+                                    className={`text-sm ${item.lowStock ? "" : "text-walnut"}`}
+                                  >
                                     {item.quantity !== null ? " " : ""}
                                     {item.unit}
                                   </span>
@@ -520,6 +582,34 @@ export default function PantryPage() {
                                 </div>
                               ) : (
                                 <div className="flex gap-4 justify-self-end">
+                                  {/* Hidden rather than removed when flagged, so the
+                                      actions column keeps its width and the
+                                      quantity/expiry columns don't shift. */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setLowStock(item, true)}
+                                    disabled={item.lowStock || flaggingId === item.id}
+                                    aria-label={`Mark ${item.ingredient} as low stock`}
+                                    className={`group inline-flex cursor-pointer items-center gap-1 text-sm text-walnut transition-colors hover:text-saffron disabled:cursor-not-allowed disabled:opacity-50 ${item.lowStock ? "invisible" : ""}`}
+                                  >
+                                    <svg
+                                      aria-hidden="true"
+                                      viewBox="0 0 12 12"
+                                      className="size-3"
+                                    >
+                                      <path
+                                        d="M2 6.5l2.5 2.5L10 3"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.6"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      />
+                                    </svg>
+                                    <span className="underline decoration-rule underline-offset-[3px] group-hover:decoration-current">
+                                      Mark low
+                                    </span>
+                                  </button>
                                   <Button
                                     variant="text"
                                     onClick={() => startEdit(item)}
@@ -533,6 +623,11 @@ export default function PantryPage() {
                                     Delete
                                   </Button>
                                 </div>
+                              )}
+                              {flagError?.id === item.id && (
+                                <p className="col-span-full text-sm text-paprika">
+                                  {flagError.message}
+                                </p>
                               )}
                             </div>
                           )}
