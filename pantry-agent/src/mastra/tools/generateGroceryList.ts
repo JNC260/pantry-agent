@@ -15,17 +15,20 @@ export const generateGroceryListTool = createTool({
     "Given a recipe the user has decided to make, compares its ingredients against what's in their pantry and returns what they already have and what they need to buy. If you already know the recipe's ingredient list from earlier in the conversation, pass it directly — otherwise this tool will extract it from the sourceLink itself.",
   inputSchema: z.object({
     sourceLink: z.string().describe("The recipe's URL"),
-    ingredients: z
-      .array(z.string())
-      .optional()
-      .describe(
-        "The recipe's ingredient names, if already known from earlier in the conversation — skips re-extraction",
-      ),
   }),
   outputSchema: groceryListSchema,
   execute: async (inputData, context) => {
     const { sourceLink } = inputData;
-    let ingredientNames = inputData.ingredients;
+    const extracted = await extractRecipeTool.execute?.(
+      { url: sourceLink },
+      context,
+    );
+    if (!extracted || isValidationError(extracted)) {
+      throw new Error(`Could not extract recipe from ${sourceLink}`);
+    }
+
+    const pantryItems = await getPantryItems();
+    let ingredientNames = extracted.ingredients;
 
     if (!ingredientNames) {
       const extracted = await extractRecipeTool.execute?.(
@@ -35,10 +38,7 @@ export const generateGroceryListTool = createTool({
       if (!extracted || isValidationError(extracted)) {
         throw new Error(`Could not extract recipe from ${sourceLink}`);
       }
-      ingredientNames = extracted.ingredients.map((i) => i.item);
     }
-
-    const pantryItems = await getPantryItems();
 
     const matchPrompt = `Recipe ingredients:
 ${ingredientNames.join("\n")}

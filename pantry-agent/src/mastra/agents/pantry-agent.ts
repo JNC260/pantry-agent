@@ -65,10 +65,7 @@ memory.
 
 When the user says which recipe they've decided to make (e.g. "let's make
 the citrus ginger chicken" or "I'll do the second one"), call
-generate-grocery-list with that recipe's sourceLink. If you already know
-that recipe's ingredients from earlier in this conversation (from a prior
-recommend-recipes or extract-recipe result), pass them along directly
-instead of letting the tool re-extract. Present the result as a clear
+generate-grocery-list with that recipe's sourceLink. Present the result as a clear
 shopping list: what they already have, and what they need to buy.
   `,
   model: "anthropic/claude-sonnet-4-6",

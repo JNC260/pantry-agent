@@ -9,6 +9,7 @@ export type PantryItem = {
   unit: string | null;
   expirationDate: string | null;
   createdAt: number;
+  lowStock: boolean;
 };
 
 const OWNER_ID = 'owner'; // single-user for now, matches the JWT's sub claim
@@ -39,6 +40,7 @@ export class PantryService {
     quantity?: number;
     unit?: string;
     expirationDate?: string;
+    lowStock?: boolean;
   }): Promise<PantryItem> {
     await ensurePantryTable();
     const id = randomUUID();
@@ -46,8 +48,8 @@ export class PantryService {
 
     await pantryDb.execute({
       sql: `INSERT INTO pantry_items
-              (id, user_id, ingredient, quantity, unit, expiration_date, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              (id, user_id, ingredient, quantity, unit, expiration_date, created_at, low_stock)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         id,
         OWNER_ID,
@@ -56,6 +58,7 @@ export class PantryService {
         input.unit ?? null,
         input.expirationDate ?? null,
         createdAt,
+        input.lowStock ?? false,
       ],
     });
 
@@ -66,6 +69,7 @@ export class PantryService {
       unit: input.unit ?? null,
       expirationDate: input.expirationDate ?? null,
       createdAt,
+      lowStock: input.lowStock ?? false,
     };
   }
 
@@ -123,5 +127,6 @@ function rowToPantryItem(row: Record<string, unknown>): PantryItem {
     expirationDate:
       row.expiration_date === null ? null : String(row.expiration_date),
     createdAt: Number(row.created_at),
+    lowStock: Boolean(row.low_stock),
   };
 }

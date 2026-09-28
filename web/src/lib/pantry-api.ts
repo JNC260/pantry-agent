@@ -7,6 +7,7 @@ export type PantryItem = {
   unit: string | null;
   expirationDate: string | null;
   createdAt: number;
+  lowStock: boolean;
 };
 
 export async function listPantryItems(): Promise<PantryItem[]> {

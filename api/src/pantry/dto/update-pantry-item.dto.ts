@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsNumber, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsDateString,
+  IsBoolean,
+} from 'class-validator';
 
 export class UpdatePantryItemDto {
   @IsOptional()
@@ -16,4 +22,8 @@ export class UpdatePantryItemDto {
   @IsOptional()
   @IsDateString()
   expirationDate?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  lowStock?: boolean;
 }
