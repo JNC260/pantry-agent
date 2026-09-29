@@ -17,6 +17,7 @@
   --saffron-bright: #d29b35;
   --saffron-wash: #f2e4c6;
   --paprika: #a3361f;
+  --paprika-wash: #f4dcd4;
   --rule: #dccfbf;
   --radius: 3px;
 }
@@ -40,6 +41,7 @@
     --saffron-bright: #c8913a;
     --saffron-wash: #342a17;
     --paprika: #e8806a;
+    --paprika-wash: #3a211b;
     --rule: #3a302a;
   }
 }
@@ -61,6 +63,7 @@
   --color-saffron-bright: var(--saffron-bright);
   --color-saffron-wash: var(--saffron-wash);
   --color-paprika: var(--paprika);
+  --color-paprika-wash: var(--paprika-wash);
   --color-rule: var(--rule);
   --radius-app: var(--radius);
   --font-display: var(--font-fraunces);

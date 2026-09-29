@@ -1,5 +1,5 @@
 // Flat geometric motifs drawn from the kitchen: a plate, a halved fig, a
-// citrus slice, a bowl. Fills come from theme tokens so they follow dark mode.
+// citrus slice, an apple core, a bowl. Fills come from theme tokens so they follow dark mode.
 
 export function Torchon({ className = "" }: { className?: string }) {
   return <div className={`torchon ${className}`} aria-hidden="true" />;
@@ -33,6 +33,37 @@ export function CitrusIcon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
       <Citrus x={0} y={0} size={100} />
+    </svg>
+  );
+}
+
+// An eaten-down apple: paprika skin caps around a pale core.
+export function AppleCoreIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
+      <path
+        d="M50 16 C52 9 55 5 59 2"
+        className="stroke-walnut"
+        strokeWidth={4}
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path d="M55 10 C63 1 75 2 80 6 C73 13 63 15 55 10 Z" className="fill-rosemary" />
+      <path
+        d="M34 36 C44 45 44 57 34 66 L66 66 C56 57 56 45 66 36 Z"
+        className="fill-paprika"
+        opacity={0.45}
+      />
+      <path
+        d="M8 38 C8 20 27 10 50 16 C73 10 92 20 92 38 Z"
+        className="fill-paprika"
+      />
+      <path
+        d="M8 64 L92 64 C92 84 73 98 50 95 C27 98 8 84 8 64 Z"
+        className="fill-paprika"
+      />
+      <ellipse cx="45" cy="51" rx="3.2" ry="5" className="fill-paprika" />
+      <ellipse cx="55" cy="51" rx="3.2" ry="5" className="fill-paprika" />
     </svg>
   );
 }

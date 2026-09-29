@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, TextField } from "@/components/ui";
 import { AppHeader } from "@/components/AppHeader";
-import { CitrusIcon } from "@/components/graphics";
+import { AppleCoreIcon, CitrusIcon } from "@/components/graphics";
 import {
   type PantryItem,
   listPantryItems,
@@ -52,7 +52,11 @@ function parseDate(value: string): Date | null {
 function formatDate(value: string): string {
   const date = parseDate(value);
   return date
-    ? date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    ? date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
     : value;
 }
 
@@ -93,6 +97,54 @@ function freshnessLabel(item: PantryItem): string {
     default:
       return `Expires ${date}`;
   }
+}
+
+function itemAnchor(item: PantryItem): string {
+  return `item-${item.id}`;
+}
+
+// A callout above the list naming items by expiry. Each name jumps to its row
+// in the list below, where the edit/delete actions live.
+function ExpiryNotice({
+  icon,
+  title,
+  className,
+  titleClassName = "",
+  items,
+  describe,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  className: string;
+  titleClassName?: string;
+  items: PantryItem[];
+  // Text after the item name, e.g. " by Oct 1, 2026".
+  describe: (date: string) => string;
+}) {
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-app px-4 py-3.5 ${className}`}
+    >
+      {icon}
+      <h2 className={`font-display text-lg font-medium ${titleClassName}`}>
+        {title}
+      </h2>
+      <p className="text-sm">
+        {items.map((it, i) => (
+          <span key={it.id}>
+            {i > 0 && " · "}
+            <a
+              href={`#${itemAnchor(it)}`}
+              className="underline decoration-current/40 underline-offset-[3px] transition-colors hover:decoration-current"
+            >
+              {it.ingredient}
+            </a>
+            {describe(formatDate(it.expirationDate!))}
+          </span>
+        ))}
+      </p>
+    </div>
+  );
 }
 
 function groupByLetter(items: PantryItem[]): [string, PantryItem[]][] {
@@ -306,12 +358,14 @@ export default function PantryPage() {
     }
   }
 
-  const useFirst = items
-    .filter((it) => {
-      const f = freshness(it);
-      return f === "soon" || f === "expired";
-    })
-    .sort((a, b) => a.expirationDate!.localeCompare(b.expirationDate!));
+  const byExpiration = (a: PantryItem, b: PantryItem) =>
+    a.expirationDate!.localeCompare(b.expirationDate!);
+  const expired = items
+    .filter((it) => freshness(it) === "expired")
+    .sort(byExpiration);
+  const useSoon = items
+    .filter((it) => freshness(it) === "soon")
+    .sort(byExpiration);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -322,21 +376,27 @@ export default function PantryPage() {
             Your pantry
           </h1>
 
-          {useFirst.length > 0 && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-app bg-saffron-wash px-4 py-3.5">
-              <CitrusIcon className="h-[22px] w-[22px] flex-none" />
-              <h2 className="font-display text-lg font-medium">
-                Use these first
-              </h2>
-              <p className="text-sm">
-                {useFirst
-                  .map((it) =>
-                    freshness(it) === "expired"
-                      ? `${it.ingredient}, expired ${formatDate(it.expirationDate!)}`
-                      : `${it.ingredient} by ${formatDate(it.expirationDate!)}`,
-                  )
-                  .join(" · ")}
-              </p>
+          {(expired.length > 0 || useSoon.length > 0) && (
+            <div className="flex flex-col gap-3">
+              {expired.length > 0 && (
+                <ExpiryNotice
+                  icon={<AppleCoreIcon className="h-[22px] w-[22px] flex-none" />}
+                  title="Expired — consider discarding"
+                  className="bg-paprika-wash"
+                  titleClassName="text-paprika"
+                  items={expired}
+                  describe={(date) => `, expired ${date}`}
+                />
+              )}
+              {useSoon.length > 0 && (
+                <ExpiryNotice
+                  icon={<CitrusIcon className="h-[22px] w-[22px] flex-none" />}
+                  title="Use these first"
+                  className="bg-saffron-wash"
+                  items={useSoon}
+                  describe={(date) => ` by ${date}`}
+                />
+              )}
             </div>
           )}
 
@@ -438,7 +498,8 @@ export default function PantryPage() {
                       return (
                         <li
                           key={item.id}
-                          className="border-rule py-4 [&+&]:border-t"
+                          id={itemAnchor(item)}
+                          className="scroll-mt-6 border-rule py-4 transition-colors [&+&]:border-t target:bg-linen target:shadow-[-12px_0_0_var(--linen),12px_0_0_var(--linen)]"
                         >
                           {isEditing && editDraft ? (
                             <div className="flex flex-col gap-3">
@@ -506,7 +567,7 @@ export default function PantryPage() {
                               </div>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-5 gap-y-1 sm:grid-cols-[minmax(0,1fr)_110px_150px_auto]">
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-5 gap-y-1 sm:grid-cols-[minmax(0,1fr)_110px_180px_auto]">
                               <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
                                 <span className="font-display text-[19px] font-medium">
                                   {item.ingredient}
@@ -552,7 +613,7 @@ export default function PantryPage() {
                                 )}
                               </span>
                               <span
-                                className={`inline-flex items-center gap-2 text-sm tabular-nums before:size-[7px] before:flex-none before:rounded-full before:content-[''] ${freshnessStyles[freshness(item)]}`}
+                                className={`inline-flex items-center gap-2 whitespace-nowrap text-sm tabular-nums before:size-[7px] before:flex-none before:rounded-full before:content-[''] ${freshnessStyles[freshness(item)]}`}
                               >
                                 {freshnessLabel(item)}
                               </span>
