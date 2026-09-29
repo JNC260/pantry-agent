@@ -30,5 +30,13 @@ export async function ensurePantryTable() {
     // column already exists on every run after the first — expected, ignore
   }
 
+  try {
+    await pantryDb.execute(
+      `ALTER TABLE pantry_items ADD COLUMN category TEXT NOT NULL DEFAULT 'other'`,
+    );
+  } catch {
+    // column already exists on every run after the first — expected, ignore
+  }
+
   initialized = true;
 }

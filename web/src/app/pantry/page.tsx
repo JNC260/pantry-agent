@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, TextField } from "@/components/ui";
+import { Button, Card, SelectField, TextField } from "@/components/ui";
 import { AppHeader } from "@/components/AppHeader";
 import { AppleCoreIcon, CitrusIcon } from "@/components/graphics";
 import {
+  type PantryCategory,
   type PantryItem,
+  PANTRY_CATEGORIES,
+  CATEGORY_LABELS,
   listPantryItems,
   createPantryItem,
   updatePantryItem,
@@ -18,6 +21,7 @@ type Draft = {
   quantity: string;
   unit: string;
   expirationDate: string;
+  category: PantryCategory;
 };
 
 const emptyDraft: Draft = {
@@ -25,7 +29,13 @@ const emptyDraft: Draft = {
   quantity: "",
   unit: "",
   expirationDate: "",
+  category: "other",
 };
+
+const categoryOptions = PANTRY_CATEGORIES.map((value) => ({
+  value,
+  label: CATEGORY_LABELS[value],
+}));
 
 function toDraft(item: PantryItem): Draft {
   return {
@@ -33,6 +43,7 @@ function toDraft(item: PantryItem): Draft {
     quantity: item.quantity !== null ? String(item.quantity) : "",
     unit: item.unit ?? "",
     expirationDate: item.expirationDate ?? "",
+    category: item.category,
   };
 }
 
@@ -232,7 +243,10 @@ export default function PantryPage() {
     setAdding(true);
     setAddError(null);
     try {
-      const input: Parameters<typeof createPantryItem>[0] = { ingredient };
+      const input: Parameters<typeof createPantryItem>[0] = {
+        ingredient,
+        category: addForm.category,
+      };
       if (addForm.quantity.trim()) input.quantity = Number(addForm.quantity);
       if (addForm.unit.trim()) input.unit = addForm.unit.trim();
       if (addForm.expirationDate.trim())
@@ -288,6 +302,10 @@ export default function PantryPage() {
       expirationTrimmed !== (item.expirationDate ?? "")
     ) {
       updates.expirationDate = expirationTrimmed;
+    }
+
+    if (editDraft.category !== item.category) {
+      updates.category = editDraft.category;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -371,7 +389,7 @@ export default function PantryPage() {
     <div className="flex min-h-screen flex-col">
       <AppHeader />
       <main className="flex-1 px-4 py-10 sm:px-6">
-        <div className="mx-auto flex max-w-3xl flex-col gap-8">
+        <div className="mx-auto flex max-w-4xl flex-col gap-8">
           <h1 className="font-display text-[32px] font-medium leading-tight">
             Your pantry
           </h1>
@@ -405,7 +423,7 @@ export default function PantryPage() {
             className="flex flex-col gap-3"
             aria-label="Add an item"
           >
-            <div className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto]">
+            <div className="grid grid-cols-2 items-end gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,0.45fr)_minmax(0,0.6fr)_minmax(0,1fr)_auto]">
               <TextField
                 label="Ingredient"
                 value={addForm.ingredient}
@@ -413,7 +431,19 @@ export default function PantryPage() {
                   setAddForm((f) => ({ ...f, ingredient: e.target.value }))
                 }
                 placeholder="e.g. Parmesan"
-                className="col-span-2 sm:col-span-1"
+                className="col-span-2 lg:col-span-1"
+              />
+              <SelectField
+                label="Category"
+                value={addForm.category}
+                onChange={(e) =>
+                  setAddForm((f) => ({
+                    ...f,
+                    category: e.target.value as PantryCategory,
+                  }))
+                }
+                options={categoryOptions}
+                className="col-span-2 lg:col-span-1"
               />
               <TextField
                 label="Quantity"
@@ -439,12 +469,12 @@ export default function PantryPage() {
                   setAddForm((f) => ({ ...f, expirationDate: e.target.value }))
                 }
                 type="date"
-                className="col-span-2 sm:col-span-1"
+                className="col-span-2 lg:col-span-1"
               />
               <Button
                 type="submit"
                 disabled={adding}
-                className="col-span-2 justify-self-start sm:col-span-1"
+                className="col-span-2 justify-self-start lg:col-span-1"
               >
                 {adding ? "Adding…" : "Add item"}
               </Button>
@@ -503,7 +533,7 @@ export default function PantryPage() {
                         >
                           {isEditing && editDraft ? (
                             <div className="flex flex-col gap-3">
-                              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                              <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
                                 <TextField
                                   label="Ingredient"
                                   value={editDraft.ingredient}
@@ -512,7 +542,24 @@ export default function PantryPage() {
                                       d ? { ...d, ingredient: e.target.value } : d,
                                     )
                                   }
-                                  className="col-span-2 sm:col-span-1"
+                                  className="col-span-2 sm:col-span-4"
+                                />
+                                <SelectField
+                                  label="Category"
+                                  value={editDraft.category}
+                                  onChange={(e) =>
+                                    setEditDraft((d) =>
+                                      d
+                                        ? {
+                                            ...d,
+                                            category: e.target
+                                              .value as PantryCategory,
+                                          }
+                                        : d,
+                                    )
+                                  }
+                                  options={categoryOptions}
+                                  className="col-span-2"
                                 />
                                 <TextField
                                   label="Quantity"
@@ -544,7 +591,7 @@ export default function PantryPage() {
                                     )
                                   }
                                   type="date"
-                                  className="col-span-2 sm:col-span-1"
+                                  className="col-span-2"
                                 />
                               </div>
                               {editError && (

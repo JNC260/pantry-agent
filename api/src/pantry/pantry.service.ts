@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { pantryDb, ensurePantryTable } from './pantry.db';
+import type { PantryCategory } from './categories';
 
 export type PantryItem = {
   id: string;
@@ -10,6 +11,7 @@ export type PantryItem = {
   expirationDate: string | null;
   createdAt: number;
   lowStock: boolean;
+  category: PantryCategory;
 };
 
 const OWNER_ID = 'owner'; // single-user for now, matches the JWT's sub claim
@@ -41,6 +43,7 @@ export class PantryService {
     unit?: string;
     expirationDate?: string;
     lowStock?: boolean;
+    category?: PantryCategory;
   }): Promise<PantryItem> {
     await ensurePantryTable();
     const id = randomUUID();
@@ -48,8 +51,8 @@ export class PantryService {
 
     await pantryDb.execute({
       sql: `INSERT INTO pantry_items
-              (id, user_id, ingredient, quantity, unit, expiration_date, created_at, low_stock)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              (id, user_id, ingredient, quantity, unit, expiration_date, created_at, low_stock, category)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         id,
         OWNER_ID,
@@ -59,6 +62,7 @@ export class PantryService {
         input.expirationDate ?? null,
         createdAt,
         input.lowStock ?? false,
+        input.category ?? 'other',
       ],
     });
 
@@ -70,6 +74,7 @@ export class PantryService {
       expirationDate: input.expirationDate ?? null,
       createdAt,
       lowStock: input.lowStock ?? false,
+      category: input.category ?? 'other',
     };
   }
 
@@ -81,6 +86,7 @@ export class PantryService {
       unit: string | null;
       expirationDate: string | null;
       lowStock: boolean;
+      category: PantryCategory;
     }>,
   ): Promise<PantryItem | null> {
     await ensurePantryTable();
@@ -94,7 +100,7 @@ export class PantryService {
 
     await pantryDb.execute({
       sql: `UPDATE pantry_items
-              SET ingredient = ?, quantity = ?, unit = ?, expiration_date = ?, low_stock = ?
+              SET ingredient = ?, quantity = ?, unit = ?, expiration_date = ?, low_stock = ?, category = ?
               WHERE id = ? AND user_id = ?`,
       args: [
         merged.ingredient,
@@ -102,6 +108,7 @@ export class PantryService {
         merged.unit,
         merged.expirationDate,
         merged.lowStock,
+        merged.category,
         id,
         OWNER_ID,
       ],
@@ -130,5 +137,6 @@ function rowToPantryItem(row: Record<string, unknown>): PantryItem {
       row.expiration_date === null ? null : String(row.expiration_date),
     createdAt: Number(row.created_at),
     lowStock: Boolean(row.low_stock),
+    category: String(row.category) as PantryCategory,
   };
 }

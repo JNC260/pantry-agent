@@ -4,7 +4,9 @@ import {
   IsNumber,
   IsDateString,
   IsBoolean,
+  IsIn,
 } from 'class-validator';
+import { PANTRY_CATEGORIES, type PantryCategory } from '../categories';
 
 export class UpdatePantryItemDto {
   @IsOptional()
@@ -26,4 +28,8 @@ export class UpdatePantryItemDto {
   @IsOptional()
   @IsBoolean()
   lowStock?: boolean;
+
+  @IsOptional()
+  @IsIn(PANTRY_CATEGORIES)
+  category?: PantryCategory;
 }
