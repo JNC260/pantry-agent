@@ -27,6 +27,26 @@ const groceryListSchema = z.object({
     ),
 });
 
+type Freshness = "expired" | "soon" | "fresh" | "none";
+
+function classifyFreshness(expirationDate: string | null): Freshness {
+  if (!expirationDate) return "none";
+  const expiry = new Date(expirationDate);
+  if (isNaN(expiry.getTime())) return "none";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  expiry.setHours(0, 0, 0, 0);
+
+  const daysUntil = Math.round(
+    (expiry.getTime() - today.getTime()) / 86_400_000,
+  );
+
+  if (daysUntil < 0) return "expired";
+  if (daysUntil <= 3) return "soon";
+  return "fresh";
+}
+
 export const generateGroceryListTool = createTool({
   id: "generate-grocery-list",
   description:
@@ -47,28 +67,30 @@ export const generateGroceryListTool = createTool({
     }
 
     const pantryItems = await getPantryItems();
-    const today = new Date().toISOString().slice(0, 10);
 
-    const matchPrompt = `Today's date: ${today}
-
-Recipe ingredients (with quantities the recipe calls for):
+    const matchPrompt = `Recipe ingredients (with quantities the recipe calls for):
 ${extracted.ingredients.map((i) => `${i.item}${i.quantity ? ` — ${i.quantity}` : ""}`).join("\n")}
 
-Pantry contents (with quantities on hand, and expiration date where known):
+Pantry contents (with quantities on hand):
 ${
   pantryItems
     .map((p) => {
       const qty = p.quantity ? ` — ${p.quantity} ${p.unit ?? ""}`.trim() : "";
       const low = p.lowStock ? " (running low)" : "";
-      const exp = p.expirationDate ? ` (expires ${p.expirationDate})` : "";
-      return `${p.ingredient}${qty}${low}${exp}`;
+      const status = classifyFreshness(p.expirationDate);
+      const freshnessLabel =
+        status === "expired"
+          ? " [EXPIRED — do not count this as available]"
+          : status === "soon"
+            ? " [expires soon — still usable now]"
+            : "";
+      return `${p.ingredient}${qty}${low}${freshnessLabel}`;
     })
     .join("\n") || "(pantry is empty)"
 }
 
 Sort the recipe ingredients into haveEnough, mightNeedMore, and needToBuy.
-Separately note any items that are running low, expired (and therefore
-moved to needToBuy), or expiring soon.`;
+Separately note any items that are running low or expiring soon.`;
 
     const result = await groceryMatchAgent.generate(matchPrompt, {
       structuredOutput: { schema: groceryListSchema },
