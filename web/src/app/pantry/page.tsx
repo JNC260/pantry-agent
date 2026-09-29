@@ -158,14 +158,113 @@ function ExpiryNotice({
   );
 }
 
-function groupByLetter(items: PantryItem[]): [string, PantryItem[]][] {
-  const groups = new Map<string, PantryItem[]>();
-  for (const item of items) {
-    const first = item.ingredient.trim().charAt(0).toUpperCase();
-    const letter = /[A-Z]/.test(first) ? first : "#";
-    groups.set(letter, [...(groups.get(letter) ?? []), item]);
+type SortKey = "ingredient" | "category" | "quantity" | "expires";
+type SortState = { key: SortKey; dir: "asc" | "desc" };
+type StatusFilter = "all" | "low" | "expiring";
+type CategoryFilter = PantryCategory | "all";
+
+const statusOptions: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "All items" },
+  { value: "low", label: "Low stock" },
+  { value: "expiring", label: "Expiring soon or expired" },
+];
+
+// Shared by the header row and item rows so the columns line up. The
+// actions column is fixed (not auto) so every row resolves the same widths.
+const TABLE_COLUMNS =
+  "sm:grid-cols-[minmax(0,1fr)_170px_90px_175px_190px]";
+
+const byName = (a: PantryItem, b: PantryItem) =>
+  a.ingredient.localeCompare(b.ingredient);
+
+// Compare two possibly-missing values; missing always sorts last, whichever
+// direction the column is sorted in.
+function compareMissingLast<T>(
+  a: T | null,
+  b: T | null,
+  compare: (a: T, b: T) => number,
+  dir: 1 | -1,
+): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return compare(a, b) * dir;
+}
+
+function sortItems(items: PantryItem[], { key, dir }: SortState): PantryItem[] {
+  const d = dir === "asc" ? 1 : -1;
+  const primary: Record<SortKey, (a: PantryItem, b: PantryItem) => number> = {
+    ingredient: (a, b) => byName(a, b) * d,
+    category: (a, b) =>
+      CATEGORY_LABELS[a.category].localeCompare(CATEGORY_LABELS[b.category]) *
+      d,
+    quantity: (a, b) =>
+      compareMissingLast(a.quantity, b.quantity, (x, y) => x - y, d),
+    // "YYYY-MM-DD" compares correctly as a string.
+    expires: (a, b) =>
+      compareMissingLast(
+        a.expirationDate,
+        b.expirationDate,
+        (x, y) => x.localeCompare(y),
+        d,
+      ),
+  };
+  // Ties fall back to name A–Z, so e.g. sorting by category lists each
+  // category's items alphabetically.
+  return [...items].sort((a, b) => primary[key](a, b) || byName(a, b));
+}
+
+function matchesStatus(item: PantryItem, filter: StatusFilter): boolean {
+  if (filter === "low") return item.lowStock;
+  if (filter === "expiring") {
+    const f = freshness(item);
+    return f === "expired" || f === "soon";
   }
-  return [...groups.entries()];
+  return true;
+}
+
+function SortHeader({
+  label,
+  column,
+  sort,
+  onSort,
+  className = "",
+}: {
+  label: string;
+  column: SortKey;
+  sort: SortState;
+  onSort: (column: SortKey) => void;
+  className?: string;
+}) {
+  const active = sort.key === column;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(column)}
+      className={`inline-flex cursor-pointer items-center gap-1 text-sm font-medium transition-colors ${
+        active ? "text-ink" : "text-walnut hover:text-rosemary"
+      } ${className}`}
+    >
+      {label}
+      {active && (
+        <>
+          <svg aria-hidden="true" viewBox="0 0 12 12" className="size-3">
+            <path
+              d={sort.dir === "asc" ? "M3 7.5l3-3 3 3" : "M3 4.5l3 3 3-3"}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="sr-only">
+            , sorted {sort.dir === "asc" ? "ascending" : "descending"}
+          </span>
+        </>
+      )}
+    </button>
+  );
 }
 
 export default function PantryPage() {
@@ -187,6 +286,13 @@ export default function PantryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [sort, setSort] = useState<SortState>({
+    key: "ingredient",
+    dir: "asc",
+  });
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
   const [flaggingId, setFlaggingId] = useState<string | null>(null);
   const [flagError, setFlagError] = useState<{
@@ -385,6 +491,45 @@ export default function PantryPage() {
     .filter((it) => freshness(it) === "soon")
     .sort(byExpiration);
 
+  // Only offer categories that have items. If the chosen one empties out
+  // (last item deleted or recategorized), fall back to all categories.
+  const presentCategories = PANTRY_CATEGORIES.filter((c) =>
+    items.some((it) => it.category === c),
+  );
+  const activeCategory: CategoryFilter =
+    categoryFilter !== "all" && presentCategories.includes(categoryFilter)
+      ? categoryFilter
+      : "all";
+  const categoryFilterOptions = [
+    { value: "all", label: "All categories" },
+    ...presentCategories.map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
+  ];
+
+  const filtering = statusFilter !== "all" || activeCategory !== "all";
+  const visible = sortItems(
+    items.filter(
+      (it) =>
+        matchesStatus(it, statusFilter) &&
+        (activeCategory === "all" || it.category === activeCategory),
+    ),
+    sort,
+  );
+
+  // Clicking the active column flips its direction; a new column starts
+  // ascending.
+  function toggleSort(key: SortKey) {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" },
+    );
+  }
+
+  function clearFilters() {
+    setStatusFilter("all");
+    setCategoryFilter("all");
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader />
@@ -504,24 +649,76 @@ export default function PantryPage() {
           )}
 
           {!loading && !loadError && items.length > 0 && (
-            <div className="border-t border-ink">
-              {groupByLetter(items).map(([letter, group], groupIndex) => (
-                <div
-                  key={letter}
-                  className="grid grid-cols-[32px_minmax(0,1fr)] gap-3.5 border-b border-rule sm:grid-cols-[40px_minmax(0,1fr)] sm:gap-5"
-                >
+            <div className="flex flex-col gap-5">
+              <div className="flex flex-wrap items-end gap-x-3 gap-y-3">
+                <SelectField
+                  label="Status"
+                  value={statusFilter}
+                  onChange={(e) =>
+                    setStatusFilter(e.target.value as StatusFilter)
+                  }
+                  options={statusOptions}
+                  className="w-60"
+                />
+                <SelectField
+                  label="Category"
+                  value={activeCategory}
+                  onChange={(e) =>
+                    setCategoryFilter(e.target.value as CategoryFilter)
+                  }
+                  options={categoryFilterOptions}
+                  className="w-56"
+                />
+                {filtering && (
+                  <p className="basis-full pb-3 text-sm tabular-nums text-walnut sm:ml-auto sm:basis-auto">
+                    Showing {visible.length} of {items.length}
+                  </p>
+                )}
+              </div>
+
+              {visible.length === 0 ? (
+                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-t border-ink pt-5">
+                  <p className="text-walnut">Nothing matches these filters.</p>
+                  <Button variant="text" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                </div>
+              ) : (
+                <div>
                   <div
-                    aria-hidden="true"
-                    className={`mt-3.5 grid size-8 place-items-center rounded-app font-display text-[17px] font-semibold sm:size-10 sm:text-xl ${
-                      groupIndex % 2 === 0
-                        ? "bg-rosemary-fill text-on-rosemary"
-                        : "bg-sage-wash text-rosemary"
-                    }`}
+                    className={`flex flex-wrap gap-x-5 gap-y-1 border-b border-ink pb-2 sm:grid ${TABLE_COLUMNS}`}
                   >
-                    {letter}
+                    <SortHeader
+                      label="Ingredient"
+                      column="ingredient"
+                      sort={sort}
+                      onSort={toggleSort}
+                      className="justify-self-start"
+                    />
+                    <SortHeader
+                      label="Category"
+                      column="category"
+                      sort={sort}
+                      onSort={toggleSort}
+                      className="justify-self-start"
+                    />
+                    <SortHeader
+                      label="Quantity"
+                      column="quantity"
+                      sort={sort}
+                      onSort={toggleSort}
+                      className="sm:justify-self-end"
+                    />
+                    <SortHeader
+                      label="Expires"
+                      column="expires"
+                      sort={sort}
+                      onSort={toggleSort}
+                      className="justify-self-start"
+                    />
                   </div>
-                  <ul>
-                    {group.map((item) => {
+                  <ul className="border-b border-rule">
+                    {visible.map((item) => {
                       const isEditing = editingId === item.id;
                       const isDeleting = deletingId === item.id;
 
@@ -614,7 +811,7 @@ export default function PantryPage() {
                               </div>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-5 gap-y-1 sm:grid-cols-[minmax(0,1fr)_110px_180px_auto]">
+                            <div className={`grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-5 gap-y-1 ${TABLE_COLUMNS}`}>
                               <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
                                 <span className="font-display text-[19px] font-medium">
                                   {item.ingredient}
@@ -645,6 +842,11 @@ export default function PantryPage() {
                                     </button>
                                   </span>
                                 )}
+                              </span>
+                              {/* On phones the columns stack, so the category
+                                  moves under the name instead. */}
+                              <span className="text-sm text-walnut max-sm:col-span-2 max-sm:row-start-2 max-sm:-mt-1 max-sm:text-xs">
+                                {CATEGORY_LABELS[item.category]}
                               </span>
                               <span
                                 className={`text-right text-[15px] tabular-nums ${item.lowStock ? "text-saffron" : ""}`}
@@ -744,7 +946,7 @@ export default function PantryPage() {
                     })}
                   </ul>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
