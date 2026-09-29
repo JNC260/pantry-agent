@@ -8,7 +8,6 @@ export class AuthController {
 
   @Post('login')
   async login(@Body('password') password: string) {
-    console.log('hash from env:', process.env.AUTH_PASSWORD);
     const valid = await bcrypt.compare(
       password ?? '',
       process.env.AUTH_PASSWORD ?? '',
