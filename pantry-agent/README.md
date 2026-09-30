@@ -1,30 +1,59 @@
 # pantry-agent
 
-Welcome to your new [Mastra](https://mastra.ai/) project! We're excited to see what you'll build.
+The Mastra application: the agent, its tools, and a few small single-purpose sub-agents. See the [root README](../README.md) for the full project overview and architecture.
 
-## Getting Started
+## What's here
 
-Start the development server:
+**Main agent:** `pantryAgent` — orchestrates everything below based on the conversation.
 
-```shell
-npm run dev
+**Tools:**
+
+- `getBoardsTool` / `getPinsFromBoardTool` — Pinterest boards/pins, cached locally (see `src/lib/pinterest-cache.ts`) with a freshness window and self-healing refetch on a cache miss
+- `searchPinsTool` — keyword search over cached pins
+- `recommendRecipesTool` — the ingredient/style-based recommendation pipeline (candidate selection → extraction → presentation)
+- `extractRecipeTool` — turns a recipe webpage into structured data
+- `generateGroceryListTool` — diffs a chosen recipe against pantry data (quantity, low-stock, expiration aware)
+- `webSearchTool` — Tavily web search, used as a fallback when nothing in saved pins fits
+
+**Sub-agents** (each with one narrow job, given structured output to return):
+
+- `recipeExtractionAgent` — parses raw recipe-page content into structured fields
+- `pinSelectionAgent` — judges which cached pins are worth extracting, given the user's request and a lightweight title/board list
+- `groceryMatchAgent` — compares a recipe's ingredients against pantry contents, with real judgment for equivalence ("chicken stock" covers "chicken broth") and rough quantity sufficiency
+
+## Running it
+
+```bash
+npm install
+npm run dev    # Studio + local API at localhost:4111
+npm run build  # production build → .mastra/output
+npm run start  # run the production build
 ```
 
-Open [http://localhost:4111](http://localhost:4111) in your browser to access [Mastra Studio](https://mastra.ai/docs/studio/overview). It provides an interactive UI for building and testing your agents, along with a REST API that exposes your Mastra application as a local service. This lets you start building without worrying about integration right away.
+## Environment variables
 
-You can start editing files inside the `src/mastra` directory. The development server will automatically reload whenever you make changes.
+```
+ANTHROPIC_API_KEY=
+TAVILY_API_KEY=
 
-## Learn more
+# Pinterest (the running app only needs the refresh token; client
+# id/secret/redirect URI are only needed once, to generate it — see
+# src/lib/pinterest-auth-flow.ts)
+PINTEREST_REFRESH_TOKEN=
 
-To learn more about Mastra, visit our [documentation](https://mastra.ai/docs/). Your bootstrapped project includes example code for [agents](https://mastra.ai/docs/agents/overview), [tools](https://mastra.ai/docs/agents/using-tools), [workflows](https://mastra.ai/docs/workflows/overview), [scorers](https://mastra.ai/docs/evals/overview), and [observability](https://mastra.ai/docs/observability/overview).
+# Turso — Pinterest cache. Unset both and it falls back to a local
+# file (pinterest-cache.db) for dev.
+PINTEREST_CACHE_DB_URL=
+PINTEREST_CACHE_DB_AUTH_TOKEN=
 
-If you're new to AI agents, check out our [course](https://mastra.ai/learn) and [YouTube videos](https://youtube.com/@mastra-ai). You can also join our [Discord](https://discord.gg/BTYqqHKUrf) community to get help and share your projects.
+# Turso — pantry data (read-only from this side; api/ owns writes)
+PANTRY_DB_URL=
+PANTRY_DB_AUTH_TOKEN=
 
-## Deploy to the Mastra platform
+# Turso — Mastra's own internal storage (observability, etc.).
+# Unset and it falls back to a local file (mastra.db).
+MASTRA_DB_URL=
+MASTRA_DB_AUTH_TOKEN=
+```
 
-The [Mastra platform](https://projects.mastra.ai) provides two products for deploying and managing AI applications built with the Mastra framework:
-
-- **Studio**: A hosted visual environment for testing agents, running workflows, and inspecting traces
-- **Server**: A production deployment target that runs your Mastra application as an API server
-
-Learn more in the [Mastra platform documentation](https://mastra.ai/docs/mastra-platform/overview).
+In production this server is never exposed publicly — `api/` reaches it over an internal `localhost` connection inside the same container. See the root README for why.
