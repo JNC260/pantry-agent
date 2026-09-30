@@ -4,12 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { authedFetch } from "@/lib/api";
 import { Button, TextField } from "@/components/ui";
 import { AppHeader } from "@/components/AppHeader";
 import { NestedArcs } from "@/components/graphics";
-
-type Message = { role: "user" | "assistant"; content: string };
+import { useChat } from "@/lib/chat-context";
 
 const markdownComponents: Components = {
   p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
@@ -55,9 +53,9 @@ const LOADING_MESSAGES = [
 ];
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { messages, sending, hydrated, unread, send, clear, markRead } =
+    useChat();
   const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
   const [loadingIndex, setLoadingIndex] = useState(0);
   const router = useRouter();
 
@@ -68,6 +66,10 @@ export default function ChatPage() {
   }, [router]);
 
   useEffect(() => {
+    if (unread) markRead();
+  }, [unread, markRead]);
+
+  useEffect(() => {
     if (!sending) return;
     const id = setInterval(() => {
       setLoadingIndex((i) => (i + 1) % LOADING_MESSAGES.length);
@@ -75,32 +77,13 @@ export default function ChatPage() {
     return () => clearInterval(id);
   }, [sending]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() || sending) return;
 
-    const userMessage: Message = { role: "user", content: input };
-    const history = [...messages, userMessage];
-    setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoadingIndex(0);
-    setSending(true);
-
-    try {
-      const res = await authedFetch("/chat", {
-        method: "POST",
-        body: JSON.stringify({ messages: history }),
-      });
-      const { reply } = await res.json();
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Something went wrong. Try again." },
-      ]);
-    } finally {
-      setSending(false);
-    }
+    send(input);
   }
 
   return (
@@ -110,10 +93,20 @@ export default function ChatPage() {
       <main className="min-h-0 flex-1 px-4 py-6 sm:px-6">
         <div className="relative mx-auto flex h-full max-w-5xl flex-col overflow-hidden rounded-app bg-sage-wash">
           <NestedArcs className="pointer-events-none absolute -right-16 -top-16 w-44 sm:w-64" />
+          {messages.length > 0 && (
+            <Button
+              variant="text"
+              onClick={clear}
+              disabled={sending}
+              className="absolute right-5 top-4 z-10 sm:right-6"
+            >
+              Clear conversation
+            </Button>
+          )}
 
           <div className="relative flex-1 overflow-y-auto px-5 py-10 sm:px-12">
             <div className="flex max-w-2xl flex-col gap-7">
-              {messages.length === 0 && !sending && (
+              {hydrated && messages.length === 0 && !sending && (
                 <div className="flex flex-col gap-2">
                   <h1 className="font-display text-3xl font-medium">
                     What’s in the kitchen?
@@ -166,7 +159,11 @@ export default function ChatPage() {
               className="flex-1"
               inputClassName="bg-paper"
             />
-            <Button type="submit" disabled={sending} className="sm:self-end">
+            <Button
+              type="submit"
+              disabled={sending || !hydrated}
+              className="sm:self-end"
+            >
               Send
             </Button>
           </form>
