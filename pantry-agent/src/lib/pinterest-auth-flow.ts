@@ -5,7 +5,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { randomBytes } from "crypto";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ENV_PATH = path.resolve(__dirname, "../../.env"); // project root .env
@@ -14,7 +14,10 @@ dotenv.config({ path: ENV_PATH });
 
 const CLIENT_ID = process.env.PINTEREST_CLIENT_ID!;
 const CLIENT_SECRET = process.env.PINTEREST_CLIENT_SECRET!;
+// Must exactly match a redirect URI registered on the Pinterest app.
 const REDIRECT_URI = process.env.PINTEREST_REDIRECT_URI || "http://localhost:3000/callback";
+const redirectUrl = new URL(REDIRECT_URI);
+const PORT = Number(redirectUrl.port || 80);
 const SCOPES = "boards:read,pins:read"; // adjust if your app needs more
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
@@ -35,8 +38,14 @@ function buildAuthUrl(): string {
   return `https://www.pinterest.com/oauth/?${params.toString()}`;
 }
 
-async function exchangeCodeForTokens(code: string) {
-  const response = await axios.post(
+type TokenResponse = {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number; // seconds
+};
+
+async function exchangeCodeForTokens(code: string): Promise<TokenResponse> {
+  const response = await axios.post<TokenResponse>(
     "https://api.pinterest.com/v5/oauth/token",
     new URLSearchParams({
       grant_type: "authorization_code",
@@ -50,7 +59,7 @@ async function exchangeCodeForTokens(code: string) {
       },
     }
   );
-  return response.data; // { access_token, refresh_token, expires_in, ... }
+  return response.data;
 }
 
 function upsertEnvVar(envContent: string, key: string, value: string): string {
@@ -69,58 +78,67 @@ function saveTokensToEnv(accessToken: string, refreshToken: string) {
   fs.writeFileSync(ENV_PATH, envContent);
 }
 
-async function main() {
+function main() {
   const app = express();
   const authUrl = buildAuthUrl();
 
-  const server = app.listen(3000, async () => {
-    console.log("\nOpening Pinterest authorization in your browser...");
-    console.log("If it doesn't open automatically, visit:\n" + authUrl + "\n");
+  // Stops the local server and exits once the one callback is handled.
+  function finish(res: express.Response, message: string, exitCode: number) {
+    res.type("text/plain").send(message);
+    server.close();
+    process.exit(exitCode);
+  }
 
-    // best-effort auto-open (macOS)
-    exec(`open "${authUrl}"`, () => {});
-  });
-
-  app.get("/callback", async (req, res) => {
+  app.get(redirectUrl.pathname, async (req, res) => {
     const { code, state: returnedState, error } = req.query;
 
     if (error) {
-      res.send(`Authorization failed: ${error}. Check your terminal and try again.`);
-      server.close();
-      process.exit(1);
+      return finish(res, `Authorization failed: ${String(error)}. Check your terminal and try again.`, 1);
     }
-
     if (returnedState !== state) {
-      res.send("State mismatch — possible CSRF issue. Aborting.");
-      server.close();
-      process.exit(1);
+      return finish(res, "State mismatch — possible CSRF issue. Aborting.", 1);
     }
-
     if (!code || typeof code !== "string") {
-      res.send("No code returned. Check your terminal.");
-      server.close();
-      process.exit(1);
+      return finish(res, "No code returned. Check your terminal.", 1);
     }
 
     try {
       console.log("Got code, exchanging for tokens immediately...");
       const tokens = await exchangeCodeForTokens(code);
-
       saveTokensToEnv(tokens.access_token, tokens.refresh_token);
 
       console.log("\nSuccess! Saved to .env:");
       console.log("  PINTEREST_ACCESS_TOKEN");
       console.log("  PINTEREST_REFRESH_TOKEN");
       console.log(`\nAccess token expires in ${tokens.expires_in}s, but the refresh token will keep you going from here on.`);
-
-      res.send("Authorization complete! Tokens saved. You can close this tab and return to your terminal.");
-    } catch (err: any) {
-      console.error("Token exchange failed:", err.response?.data ?? err.message);
-      res.send("Token exchange failed — check your terminal for details.");
-    } finally {
-      server.close();
-      process.exit(0);
+      finish(res, "Authorization complete! Tokens saved. You can close this tab and return to your terminal.", 0);
+    } catch (err) {
+      console.error(
+        "Token exchange failed:",
+        axios.isAxiosError(err) ? (err.response?.data ?? err.message) : err,
+      );
+      finish(res, "Token exchange failed — check your terminal for details.", 1);
     }
+  });
+
+  const server = app.listen(PORT, () => {
+    console.log("\nOpening Pinterest authorization in your browser...");
+    console.log("If it doesn't open automatically, visit:\n" + authUrl + "\n");
+
+    // Best-effort auto-open (macOS). execFile passes the URL as an argument
+    // rather than through a shell.
+    execFile("open", [authUrl], () => {});
+  });
+
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(
+        `Port ${PORT} (from ${REDIRECT_URI}) is in use. Stop whatever is running there (e.g. the api) and try again.`,
+      );
+    } else {
+      console.error("Could not start the callback server:", err);
+    }
+    process.exit(1);
   });
 }
 

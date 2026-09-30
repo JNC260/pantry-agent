@@ -1,4 +1,9 @@
-import { Injectable, BadGatewayException, Logger } from '@nestjs/common';
+import {
+  BadGatewayException,
+  GatewayTimeoutException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -12,6 +17,10 @@ interface AgentGenerateResponse {
     payload?: { toolName?: string; result?: unknown; isError?: boolean };
   }[];
 }
+
+// A recommendation can extract several recipe pages, so replies take a
+// while; this only stops a hung agent from holding the request forever.
+const AGENT_TIMEOUT_MS = 120_000;
 
 // Mastra's top-level `text` concatenates the text from every step with no
 // separator, so "…its pins!" + "Found it!" ran together. Join per-step text
@@ -39,9 +48,15 @@ export class ChatService {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages }),
+          signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
         },
       );
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'TimeoutError') {
+        throw new GatewayTimeoutException(
+          `Mastra server did not reply within ${AGENT_TIMEOUT_MS / 1000}s`,
+        );
+      }
       throw new BadGatewayException(
         `Could not reach Mastra server: ${(err as Error).message}`,
       );

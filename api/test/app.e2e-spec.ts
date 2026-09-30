@@ -52,6 +52,17 @@ describe('App (e2e)', () => {
       .expect(400);
   });
 
+  it('POST /auth/login limits repeated attempts', async () => {
+    const attempt = () =>
+      request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ password: 'wrong' });
+    for (let i = 0; i < 5; i++) {
+      await attempt().expect(401);
+    }
+    await attempt().expect(429);
+  });
+
   it('POST /chat rejects malformed messages', () => {
     return request(app.getHttpServer())
       .post('/chat')
@@ -83,6 +94,28 @@ describe('App (e2e)', () => {
         quantity: null,
         unit: null,
       });
+    });
+
+    it('changes only the fields that were sent', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/pantry/${id}`)
+        .set(auth)
+        .send({ lowStock: true })
+        .expect(200);
+      expect(res.body).toMatchObject({
+        ingredient: 'Parmesan',
+        quantity: 2,
+        unit: 'wedge',
+        lowStock: true,
+      });
+    });
+
+    it('returns 404 for an unknown item', () => {
+      return request(app.getHttpServer())
+        .patch('/pantry/does-not-exist')
+        .set(auth)
+        .send({ lowStock: true })
+        .expect(404);
     });
 
     it.each(['ingredient', 'lowStock', 'category'])(

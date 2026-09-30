@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { GatewayTimeoutException, Logger } from '@nestjs/common';
 import { ChatService } from './chat.service';
 
 function mockMastraResponse(body: unknown) {
@@ -58,6 +58,16 @@ describe('ChatService', () => {
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0][0]).toContain(
       'Tool generate-grocery-list failed',
+    );
+  });
+
+  it('reports a hung agent as a gateway timeout', async () => {
+    jest
+      .spyOn(global, 'fetch')
+      .mockRejectedValue(new DOMException('timed out', 'TimeoutError'));
+
+    await expect(service.sendMessage(messages)).rejects.toBeInstanceOf(
+      GatewayTimeoutException,
     );
   });
 });

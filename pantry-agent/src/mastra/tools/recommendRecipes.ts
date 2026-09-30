@@ -108,8 +108,9 @@ Select up to ${MAX_CANDIDATES_TO_EXTRACT} pin IDs that look like genuinely good 
   );
 
   // preserve the agent's own ordering, not the cache's arbitrary order
+  const pinsById = new Map(allPins.map((p) => [p.id, p]));
   return selection.object.selectedPinIds
-    .map((id) => allPins.find((p) => p.id === id))
+    .map((id) => pinsById.get(id))
     .filter((p): p is NonNullable<typeof p> => !!p);
 }
 

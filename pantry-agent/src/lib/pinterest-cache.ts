@@ -16,11 +16,19 @@ export const client = createClient({
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-let initialized = false;
+// Shared by every caller that arrives while setup is running, so the tables
+// are created once. Cleared on failure so the next call retries.
+let tablesReady: Promise<void> | null = null;
 
-async function ensureTables() {
-  if (initialized) return;
+function ensureTables(): Promise<void> {
+  tablesReady ??= createTables().catch((err: unknown) => {
+    tablesReady = null;
+    throw err;
+  });
+  return tablesReady;
+}
 
+async function createTables() {
   await client.batch(
     [
       `CREATE TABLE IF NOT EXISTS boards_cache (
@@ -40,8 +48,6 @@ async function ensureTables() {
     ],
     "write",
   );
-
-  initialized = true;
 }
 
 async function isFresh(
@@ -128,41 +134,40 @@ export async function replaceCachedPins(
   await markFetched(`pins:${boardId}`);
 }
 
-export async function searchCachedPins(query: string, boardId?: string) {
+// Every cached pin on a board that's still cached, with its board's id and
+// name, in one query. Pins left behind by a board that has since been
+// removed are skipped by the join.
+async function getPinsWithBoards(boardId?: string) {
   await ensureTables();
-
-  const lowerQuery = query.toLowerCase();
-
-  const boardIds = boardId
-    ? [boardId]
-    : (await getCachedBoards()).map((b) => b.id);
-
-  const matches: {
-    id: string;
-    title: string | null;
-    sourceLink: string | null;
-    boardId: string;
-  }[] = [];
-
-  for (const id of boardIds) {
-    const pins = await getCachedPins(id);
-    for (const pin of pins) {
-      if (pin.title && pin.title.toLowerCase().includes(lowerQuery)) {
-        matches.push({ ...pin, boardId: id });
-      }
-    }
-  }
-
-  return matches;
+  const result = await client.execute({
+    sql: `SELECT p.id, p.title, p.source_link, p.board_id, b.name AS board_name
+          FROM pins_cache p
+          JOIN boards_cache b ON b.id = p.board_id
+          ${boardId ? "WHERE p.board_id = ?" : ""}`,
+    args: boardId ? [boardId] : [],
+  });
+  return result.rows.map((r) => ({
+    id: String(r.id),
+    title: r.title === null ? null : String(r.title),
+    sourceLink: r.source_link === null ? null : String(r.source_link),
+    boardId: String(r.board_id),
+    boardName: String(r.board_name),
+  }));
 }
 
-async function getBoardNameMap(): Promise<Record<string, string>> {
-  const boards = await getCachedBoards();
-  const map: Record<string, string> = {};
-  for (const b of boards) {
-    map[b.id] = b.name;
-  }
-  return map;
+// Case-insensitive title search. Matching happens here rather than in SQL
+// because SQLite's lower() only folds ASCII.
+export async function searchCachedPins(query: string, boardId?: string) {
+  const lowerQuery = query.toLowerCase();
+  const pins = await getPinsWithBoards(boardId);
+  return pins
+    .filter((pin) => pin.title?.toLowerCase().includes(lowerQuery))
+    .map(({ id, title, sourceLink, boardId }) => ({
+      id,
+      title,
+      sourceLink,
+      boardId,
+    }));
 }
 
 export type LightweightPin = {
@@ -173,20 +178,11 @@ export type LightweightPin = {
 };
 
 export async function getAllCachedPinsLightweight(): Promise<LightweightPin[]> {
-  const boardNameMap = await getBoardNameMap();
-  const boardIds = Object.keys(boardNameMap);
-
-  const all: LightweightPin[] = [];
-  for (const boardId of boardIds) {
-    const pins = await getCachedPins(boardId);
-    for (const pin of pins) {
-      all.push({
-        id: pin.id,
-        title: pin.title,
-        boardName: boardNameMap[boardId] ?? "",
-        sourceLink: pin.sourceLink,
-      });
-    }
-  }
-  return all;
+  const pins = await getPinsWithBoards();
+  return pins.map(({ id, title, boardName, sourceLink }) => ({
+    id,
+    title,
+    boardName,
+    sourceLink,
+  }));
 }

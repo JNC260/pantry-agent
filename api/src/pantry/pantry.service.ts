@@ -18,6 +18,17 @@ export type PantryItem = {
   category: PantryCategory;
 };
 
+// Update DTO field -> column. Also the allow-list of columns an update may
+// write, since these names are interpolated into the SQL.
+const UPDATABLE_COLUMNS: Record<keyof UpdatePantryItemDto, string> = {
+  ingredient: 'ingredient',
+  quantity: 'quantity',
+  unit: 'unit',
+  expirationDate: 'expiration_date',
+  lowStock: 'low_stock',
+  category: 'category',
+};
+
 @Injectable()
 export class PantryService {
   async list(): Promise<PantryItem[]> {
@@ -78,31 +89,22 @@ export class PantryService {
     updates: UpdatePantryItemDto,
   ): Promise<PantryItem | null> {
     await ensurePantryTable();
-    const existing = await this.get(id);
-    if (!existing) return null;
 
-    const definedUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([, value]) => value !== undefined),
-    );
-    const merged = { ...existing, ...definedUpdates };
+    // Only the fields that were sent are written, so an edit never
+    // overwrites a column it didn't touch.
+    const fields = (
+      Object.keys(UPDATABLE_COLUMNS) as (keyof UpdatePantryItemDto)[]
+    ).filter((field) => updates[field] !== undefined);
+    if (fields.length === 0) return this.get(id);
 
-    await pantryDb.execute({
+    const result = await pantryDb.execute({
       sql: `UPDATE pantry_items
-              SET ingredient = ?, quantity = ?, unit = ?, expiration_date = ?, low_stock = ?, category = ?
-              WHERE id = ? AND user_id = ?`,
-      args: [
-        merged.ingredient,
-        merged.quantity,
-        merged.unit,
-        merged.expirationDate,
-        merged.lowStock,
-        merged.category,
-        id,
-        OWNER_ID,
-      ],
+              SET ${fields.map((field) => `${UPDATABLE_COLUMNS[field]} = ?`).join(', ')}
+              WHERE id = ? AND user_id = ?
+              RETURNING *`,
+      args: [...fields.map((field) => updates[field] ?? null), id, OWNER_ID],
     });
-
-    return merged;
+    return result.rows.length > 0 ? rowToPantryItem(result.rows[0]) : null;
   }
 
   async delete(id: string): Promise<boolean> {

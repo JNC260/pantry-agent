@@ -15,10 +15,18 @@ export type StoredPinterestTokens = {
   seedHash: string;
 };
 
-let initialized = false;
+// Shared by concurrent first callers; cleared on failure so the next retries.
+let tableReady: Promise<void> | null = null;
 
-async function ensureTable() {
-  if (initialized) return;
+function ensureTable(): Promise<void> {
+  tableReady ??= createTable().catch((err: unknown) => {
+    tableReady = null;
+    throw err;
+  });
+  return tableReady;
+}
+
+async function createTable() {
   await client.execute(`CREATE TABLE IF NOT EXISTS pinterest_oauth (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     refresh_token TEXT NOT NULL,
@@ -28,7 +36,6 @@ async function ensureTable() {
     seed_hash TEXT NOT NULL,
     updated_at INTEGER NOT NULL
   )`);
-  initialized = true;
 }
 
 export function hashToken(token: string): string {

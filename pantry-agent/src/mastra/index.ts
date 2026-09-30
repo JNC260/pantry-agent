@@ -18,6 +18,9 @@ import {
   checkPinterestConnection,
   startPinterestHealthChecks,
 } from "../lib/pinterest-health";
+import { checkRequiredEnv } from "../lib/check-env";
+
+checkRequiredEnv();
 
 export const mastra = new Mastra({
   agents: {

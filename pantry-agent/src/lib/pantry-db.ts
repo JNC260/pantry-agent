@@ -1,9 +1,18 @@
-import { createClient } from "@libsql/client";
+import { createClient, type Client } from "@libsql/client";
 
-const pantryDb = createClient({
-  url: process.env.PANTRY_DB_URL!,
-  authToken: process.env.PANTRY_DB_AUTH_TOKEN,
-});
+// Created on first use rather than at import, so a missing PANTRY_DB_URL
+// only breaks grocery lists instead of crashing the whole agent server.
+let pantryDb: Client | null = null;
+
+function getPantryDb(): Client {
+  const url = process.env.PANTRY_DB_URL;
+  if (!url) throw new Error("PANTRY_DB_URL is not set");
+  pantryDb ??= createClient({
+    url,
+    authToken: process.env.PANTRY_DB_AUTH_TOKEN,
+  });
+  return pantryDb;
+}
 
 // Must match OWNER_ID in api/src/auth/owner.ts, which owns this table.
 const OWNER_ID = "owner";
@@ -17,7 +26,7 @@ export type PantryItem = {
 };
 
 export async function getPantryItems(): Promise<PantryItem[]> {
-  const result = await pantryDb.execute({
+  const result = await getPantryDb().execute({
     sql: "SELECT ingredient, quantity, unit, expiration_date, low_stock FROM pantry_items WHERE user_id = ?",
     args: [OWNER_ID],
   });

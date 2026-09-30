@@ -1,5 +1,12 @@
-import { Body, Controller, Post, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { OWNER_ID } from './owner';
@@ -9,6 +16,7 @@ export class AuthController {
   constructor(private jwtService: JwtService) {}
 
   @Post('login')
+  @UseGuards(ThrottlerGuard)
   async login(@Body() { password }: LoginDto) {
     const valid = await bcrypt.compare(
       password,
