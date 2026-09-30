@@ -11,16 +11,32 @@ let expiresAt = 0; // epoch ms
 // refresh a bit early (60s buffer) to avoid edge-case races
 const EARLY_REFRESH_MS = 60_000;
 
-function isValid(token: string | null, expiry: number, now: number): token is string {
+// The refresh in progress, shared by every caller that needs a token while it
+// runs. Pinterest rotates the refresh token on each use, so two parallel
+// refreshes would race to spend the same one.
+let inflight: Promise<string> | null = null;
+
+function isValid(
+  token: string | null,
+  expiry: number,
+  now: number,
+): token is string {
   return !!token && now < expiry - EARLY_REFRESH_MS;
 }
 
 export async function getValidPinterestToken(): Promise<string> {
-  const now = Date.now();
-
-  if (isValid(cachedToken, expiresAt, now)) {
+  if (isValid(cachedToken, expiresAt, Date.now())) {
     return cachedToken;
   }
+
+  inflight ??= loadOrRefreshToken().finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
+
+async function loadOrRefreshToken(): Promise<string> {
+  const now = Date.now();
 
   const envRefreshToken = process.env.PINTEREST_REFRESH_TOKEN;
   if (!envRefreshToken) {
@@ -33,11 +49,16 @@ export async function getValidPinterestToken(): Promise<string> {
   const stored = await loadPinterestTokens();
   const current = stored?.seedHash === seedHash ? stored : null;
   if (stored && !current) {
-    console.log("[pinterest-auth] PINTEREST_REFRESH_TOKEN changed; starting from the env token");
+    console.log(
+      "[pinterest-auth] PINTEREST_REFRESH_TOKEN changed; starting from the env token",
+    );
   }
 
   // Reuse an access token another process (or a previous run) already got.
-  if (current && isValid(current.accessToken, current.accessTokenExpiresAt, now)) {
+  if (
+    current &&
+    isValid(current.accessToken, current.accessTokenExpiresAt, now)
+  ) {
     cachedToken = current.accessToken;
     expiresAt = current.accessTokenExpiresAt;
     return cachedToken;
@@ -64,6 +85,22 @@ export async function getValidPinterestToken(): Promise<string> {
     );
     data = response.data;
   } catch (err: any) {
+    // Another process sharing the database (e.g. local dev and production)
+    // may have spent this refresh token between our read and our request.
+    const latest = await loadPinterestTokens().catch(() => null);
+    if (
+      latest?.seedHash === seedHash &&
+      latest.refreshToken !== refreshToken &&
+      isValid(latest.accessToken, latest.accessTokenExpiresAt, Date.now())
+    ) {
+      console.log(
+        "[pinterest-auth] another process refreshed first; using its token",
+      );
+      cachedToken = latest.accessToken;
+      expiresAt = latest.accessTokenExpiresAt;
+      return cachedToken;
+    }
+
     console.error(
       "[pinterest-auth] token refresh failed:",
       err.response?.status,
@@ -88,13 +125,22 @@ export async function getValidPinterestToken(): Promise<string> {
   expiresAt = newExpiresAt;
 
   try {
-    await savePinterestTokens({
-      refreshToken: newRefreshToken,
-      refreshTokenExpiresAt,
-      accessToken: cachedToken,
-      accessTokenExpiresAt: newExpiresAt,
-      seedHash,
-    });
+    const saved = await savePinterestTokens(
+      {
+        refreshToken: newRefreshToken,
+        refreshTokenExpiresAt,
+        accessToken: cachedToken,
+        accessTokenExpiresAt: newExpiresAt,
+        seedHash,
+      },
+      refreshToken,
+    );
+    if (!saved) {
+      // Our access token is still good for this process; keep theirs stored.
+      console.log(
+        "[pinterest-auth] another process saved newer tokens first; keeping them",
+      );
+    }
   } catch (err) {
     // The access token still works for this process, but the rotated refresh
     // token is only in memory, so a restart may not be able to refresh.

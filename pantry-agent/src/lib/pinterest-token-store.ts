@@ -50,9 +50,16 @@ export async function loadPinterestTokens(): Promise<StoredPinterestTokens | nul
   };
 }
 
-export async function savePinterestTokens(tokens: StoredPinterestTokens) {
+// Saves tokens obtained by refreshing `usedRefreshToken`. Only overwrites the
+// stored row if it still holds that token (or came from a different seed), so
+// a process that lost a refresh race can't replace the winner's newer tokens.
+// Returns false when another process had already saved newer tokens.
+export async function savePinterestTokens(
+  tokens: StoredPinterestTokens,
+  usedRefreshToken: string,
+): Promise<boolean> {
   await ensureTable();
-  await client.execute({
+  const result = await client.execute({
     sql: `INSERT INTO pinterest_oauth (
             id, refresh_token, refresh_token_expires_at, access_token,
             access_token_expires_at, seed_hash, updated_at
@@ -63,7 +70,9 @@ export async function savePinterestTokens(tokens: StoredPinterestTokens) {
             access_token = excluded.access_token,
             access_token_expires_at = excluded.access_token_expires_at,
             seed_hash = excluded.seed_hash,
-            updated_at = excluded.updated_at`,
+            updated_at = excluded.updated_at
+          WHERE pinterest_oauth.refresh_token = ?
+             OR pinterest_oauth.seed_hash != excluded.seed_hash`,
     args: [
       tokens.refreshToken,
       tokens.refreshTokenExpiresAt,
@@ -71,6 +80,8 @@ export async function savePinterestTokens(tokens: StoredPinterestTokens) {
       tokens.accessTokenExpiresAt,
       tokens.seedHash,
       Date.now(),
+      usedRefreshToken,
     ],
   });
+  return result.rowsAffected > 0;
 }
