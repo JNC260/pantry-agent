@@ -93,16 +93,6 @@ export default function ChatPage() {
       <main className="min-h-0 flex-1 px-4 py-6 sm:px-6">
         <div className="relative mx-auto flex h-full max-w-5xl flex-col overflow-hidden rounded-app bg-sage-wash">
           <NestedArcs className="pointer-events-none absolute -right-16 -top-16 w-44 sm:w-64" />
-          {messages.length > 0 && (
-            <Button
-              variant="text"
-              onClick={clear}
-              disabled={sending}
-              className="absolute right-5 top-4 z-10 sm:right-6"
-            >
-              Clear conversation
-            </Button>
-          )}
 
           <div className="relative flex-1 overflow-y-auto px-5 py-10 sm:px-12">
             <div className="flex max-w-2xl flex-col gap-7">
@@ -166,6 +156,17 @@ export default function ChatPage() {
             >
               Send
             </Button>
+            {messages.length > 0 && (
+              <Button
+                type="button"
+                variant="text"
+                onClick={clear}
+                disabled={sending}
+                className="self-start sm:mb-3 sm:self-end"
+              >
+                Clear conversation
+              </Button>
+            )}
           </form>
         </div>
       </main>
