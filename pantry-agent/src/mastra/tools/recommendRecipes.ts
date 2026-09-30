@@ -7,8 +7,12 @@ import {
   getCachedBoards,
   getCachedPins,
   getAllCachedPinsLightweight,
-  type LightweightPin,
 } from "../../lib/pinterest-cache";
+import {
+  isRecipeBoard,
+  missingRecipeBoards,
+  selectablePins,
+} from "../../lib/recipe-boards";
 import { pinSelectionAgent } from "../agents/pin-selection-agent";
 
 const selectionSchema = z.object({
@@ -16,65 +20,6 @@ const selectionSchema = z.object({
 });
 
 const MAX_CANDIDATES_TO_EXTRACT = 5;
-
-// Boards whose pins are recipes. Only these are considered for
-// recommendations; the rest (clothes, house, travel…) are thousands of pins
-// that would only bloat the selection prompt. Matched by name, ignoring case,
-// so renaming a board on Pinterest means updating it here too.
-const RECIPE_BOARDS = [
-  "Baby Snacks",
-  "Breakfast of champions...",
-  "Getting Tipsy",
-  "If fish is what you wish...",
-  "It ain't easy being green...",
-  "Pastabilities",
-  "Shameless carnivore :)",
-  "Sides, apps, and everything in between...",
-  "Stuff I've Done!",
-  "Sweet stuff",
-];
-const RECIPE_BOARD_NAMES = new Set(
-  RECIPE_BOARDS.map((name) => name.trim().toLowerCase()),
-);
-
-function isRecipeBoard(boardName: string) {
-  return RECIPE_BOARD_NAMES.has(boardName.trim().toLowerCase());
-}
-
-// Warns when a listed board no longer exists (e.g. it was renamed), since its
-// recipes would otherwise silently drop out of recommendations.
-function warnAboutMissingRecipeBoards(boards: { name: string }[]) {
-  const present = new Set(boards.map((b) => b.name.trim().toLowerCase()));
-  const missing = RECIPE_BOARDS.filter(
-    (name) => !present.has(name.trim().toLowerCase()),
-  );
-  if (missing.length > 0) {
-    console.warn(
-      `[recommend-recipes] recipe boards not found on Pinterest (renamed?): ${missing.join(", ")}`,
-    );
-  }
-}
-
-// Only pins that could become a recommendation: they're on a recipe board,
-// they need a link, and a recipe saved to several boards is listed once. Sorted so the prompt built
-// from them is byte-identical between requests (needed for prompt caching).
-function selectablePins(pins: LightweightPin[]) {
-  const sorted = pins
-    .filter(
-      (p): p is LightweightPin & { sourceLink: string } =>
-        !!p.sourceLink && isRecipeBoard(p.boardName),
-    )
-    .sort(
-      (a, b) =>
-        a.boardName.localeCompare(b.boardName) || a.id.localeCompare(b.id),
-    );
-  const seen = new Set<string>();
-  return sorted.filter((p) => {
-    if (seen.has(p.sourceLink)) return false;
-    seen.add(p.sourceLink);
-    return true;
-  });
-}
 
 const MAX_RECOMMENDATIONS = 3;
 
@@ -147,7 +92,12 @@ export const recommendRecipesTool = createTool({
       await getBoardsTool.execute?.({}, context);
     }
     const boards = await getCachedBoards();
-    warnAboutMissingRecipeBoards(boards);
+    const missing = missingRecipeBoards(boards);
+    if (missing.length > 0) {
+      console.warn(
+        `[recommend-recipes] recipe boards not found on Pinterest (renamed?): ${missing.join(", ")}`,
+      );
+    }
 
     let candidates = await selectCandidates(ingredients);
 

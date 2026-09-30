@@ -1,7 +1,7 @@
 import type { PantryItem } from "@/lib/pantry-api";
 
 // Items expiring within this many days count as "use soon". The grocery list
-// tool in pantry-agent (generateGroceryList.ts) uses the same window.
+// tool in pantry-agent (src/lib/grocery-prompt.ts) uses the same window.
 export const USE_SOON_DAYS = 3;
 
 const MS_PER_DAY = 86_400_000;
@@ -50,10 +50,13 @@ export function freshness(
   return "fresh";
 }
 
-export function freshnessLabel(item: Pick<PantryItem, "expirationDate">): string {
+export function freshnessLabel(
+  item: Pick<PantryItem, "expirationDate">,
+  today = new Date(),
+): string {
   if (!item.expirationDate) return "No date";
   const date = formatDate(item.expirationDate);
-  switch (freshness(item)) {
+  switch (freshness(item, today)) {
     case "expired":
       return `Expired ${date}`;
     case "soon":

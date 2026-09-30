@@ -5,5 +5,9 @@
     "pantry-agent",
     "api",
     "web"
-  ]
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test --workspaces --if-present && npm run test:e2e -w api"
+  }
 }

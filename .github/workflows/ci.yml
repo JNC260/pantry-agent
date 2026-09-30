@@ -1,0 +1,53 @@
+# Typecheck, lint, test, and build all three services on every push and PR.
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the run it replaces.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # web's typecheck runs `next typegen` first, since the route types it
+      # checks against are generated rather than committed.
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Not `npm run lint -w api`: that passes --fix, which would hide
+      # problems here instead of failing on them.
+      - name: Lint
+        run: |
+          (cd api && npx eslint "{src,test}/**/*.ts")
+          npm run lint -w web
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: |
+          npm run build -w pantry-agent
+          npm run build -w api
+          npm run build -w web

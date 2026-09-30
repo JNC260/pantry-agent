@@ -2,6 +2,7 @@ import { createTool, isValidationError } from "@mastra/core/tools";
 import { z } from "zod";
 import { extractRecipeTool } from "./extractRecipe";
 import { getPantryItems } from "../../lib/pantry-db";
+import { formatPantryLine, formatRecipeLine } from "../../lib/grocery-prompt";
 import { groceryMatchAgent } from "../agents/grocery-match-agent";
 
 const groceryListSchema = z.object({
@@ -27,36 +28,6 @@ const groceryListSchema = z.object({
     ),
 });
 
-// Matches USE_SOON_DAYS in web/src/lib/freshness.ts, so the grocery list and
-// the pantry page agree on what "expires soon" means.
-const USE_SOON_DAYS = 3;
-
-type Freshness = "expired" | "soon" | "fresh" | "none";
-
-function classifyFreshness(expirationDate: string | null): Freshness {
-  if (!expirationDate) return "none";
-  // Stored as "YYYY-MM-DD". Build a local date: `new Date("YYYY-MM-DD")`
-  // parses as UTC midnight, which is the previous day west of UTC.
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(expirationDate);
-  if (!match) return "none";
-  const expiry = new Date(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3]),
-  );
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const daysUntil = Math.round(
-    (expiry.getTime() - today.getTime()) / 86_400_000,
-  );
-
-  if (daysUntil < 0) return "expired";
-  if (daysUntil <= USE_SOON_DAYS) return "soon";
-  return "fresh";
-}
-
 export const generateGroceryListTool = createTool({
   id: "generate-grocery-list",
   description:
@@ -79,25 +50,10 @@ export const generateGroceryListTool = createTool({
     const pantryItems = await getPantryItems();
 
     const matchPrompt = `Recipe ingredients (with quantities the recipe calls for):
-${extracted.ingredients.map((i) => `${i.item}${i.quantity ? ` — ${i.quantity}` : ""}`).join("\n")}
+${extracted.ingredients.map(formatRecipeLine).join("\n")}
 
 Pantry contents (with quantities on hand):
-${
-  pantryItems
-    .map((p) => {
-      const qty = p.quantity ? ` — ${p.quantity} ${p.unit ?? ""}`.trim() : "";
-      const low = p.lowStock ? " (running low)" : "";
-      const status = classifyFreshness(p.expirationDate);
-      const freshnessLabel =
-        status === "expired"
-          ? " [EXPIRED — do not count this as available]"
-          : status === "soon"
-            ? " [expires soon — still usable now]"
-            : "";
-      return `${p.ingredient}${qty}${low}${freshnessLabel}`;
-    })
-    .join("\n") || "(pantry is empty)"
-}
+${pantryItems.map((item) => formatPantryLine(item)).join("\n") || "(pantry is empty)"}
 
 Sort the recipe ingredients into haveEnough, mightNeedMore, and needToBuy.
 Separately note any items that are running low or expiring soon.`;

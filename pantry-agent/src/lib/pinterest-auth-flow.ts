@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { randomBytes } from "crypto";
 import { execFile } from "child_process";
+import { upsertEnvVar } from "./env-file";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ENV_PATH = path.resolve(__dirname, "../../.env"); // project root .env
@@ -60,15 +61,6 @@ async function exchangeCodeForTokens(code: string): Promise<TokenResponse> {
     }
   );
   return response.data;
-}
-
-function upsertEnvVar(envContent: string, key: string, value: string): string {
-  const line = `${key}=${value}`;
-  const regex = new RegExp(`^${key}=.*$`, "m");
-  if (regex.test(envContent)) {
-    return envContent.replace(regex, line);
-  }
-  return envContent.trimEnd() + `\n${line}\n`;
 }
 
 function saveTokensToEnv(accessToken: string, refreshToken: string) {

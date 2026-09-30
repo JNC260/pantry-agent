@@ -45,6 +45,41 @@ describe('App (e2e)', () => {
     return request(app.getHttpServer()).get('/pantry').expect(401);
   });
 
+  describe('JwtAuthGuard', () => {
+    const getPantry = (authorization: string) =>
+      request(app.getHttpServer())
+        .get('/pantry')
+        .set('Authorization', authorization);
+
+    it('accepts a valid token', () => {
+      return getPantry(auth.Authorization).expect(200);
+    });
+
+    it('rejects a malformed token', () => {
+      return getPantry('Bearer not-a-jwt').expect(401);
+    });
+
+    it('rejects a token signed with another secret', async () => {
+      const forged = await new JwtService({
+        secret: 'someone-elses-secret',
+      }).signAsync({ sub: OWNER_ID });
+      return getPantry(`Bearer ${forged}`).expect(401);
+    });
+
+    it('rejects an expired token', async () => {
+      const expired = await app
+        .get(JwtService)
+        .signAsync({ sub: OWNER_ID }, { expiresIn: '-1s' });
+      return getPantry(`Bearer ${expired}`).expect(401);
+    });
+
+    it('requires the Bearer scheme', () => {
+      return getPantry(auth.Authorization.replace('Bearer ', 'Token ')).expect(
+        401,
+      );
+    });
+  });
+
   it('POST /auth/login rejects a body with no password', () => {
     return request(app.getHttpServer())
       .post('/auth/login')
