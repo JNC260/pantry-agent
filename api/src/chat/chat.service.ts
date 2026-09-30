@@ -1,4 +1,4 @@
-import { Injectable, BadGatewayException } from '@nestjs/common';
+import { Injectable, BadGatewayException, Logger } from '@nestjs/common';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -7,10 +7,25 @@ export interface ChatMessage {
 
 interface AgentGenerateResponse {
   text: string;
+  steps?: { text?: string }[];
+  toolResults?: {
+    payload?: { toolName?: string; result?: unknown; isError?: boolean };
+  }[];
+}
+
+// Mastra's top-level `text` concatenates the text from every step with no
+// separator, so "…its pins!" + "Found it!" ran together. Join per-step text
+// with a paragraph break instead.
+function replyText(result: AgentGenerateResponse): string {
+  const parts = (result.steps ?? [])
+    .map((step) => step.text?.trim())
+    .filter((text): text is string => !!text);
+  return parts.length > 0 ? parts.join('\n\n') : result.text;
 }
 
 @Injectable()
 export class ChatService {
+  private readonly logger = new Logger(ChatService.name);
   private readonly mastraUrl =
     process.env.MASTRA_SERVER_URL ?? 'http://localhost:4111';
 
@@ -40,6 +55,22 @@ export class ChatService {
     }
 
     const result = (await response.json()) as AgentGenerateResponse;
-    return result.text;
+
+    const toolNames = (result.toolResults ?? []).map(
+      (toolResult) => toolResult.payload?.toolName ?? 'unknown',
+    );
+    this.logger.log(`Tools used: ${toolNames.join(', ') || 'none'}`);
+
+    // A failed tool call doesn't fail the request (the agent carries on
+    // without it), so log it here or it's invisible.
+    for (const toolResult of result.toolResults ?? []) {
+      if (toolResult.payload?.isError) {
+        this.logger.warn(
+          `Tool ${toolResult.payload.toolName} failed: ${JSON.stringify(toolResult.payload.result).slice(0, 500)}`,
+        );
+      }
+    }
+
+    return replyText(result);
   }
 }
