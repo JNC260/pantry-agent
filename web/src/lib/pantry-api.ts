@@ -33,6 +33,12 @@ export const CATEGORY_LABELS: Record<PantryCategory, string> = {
   other: "Other",
 };
 
+// For <select> fields, in PANTRY_CATEGORIES order.
+export const CATEGORY_OPTIONS = PANTRY_CATEGORIES.map((value) => ({
+  value,
+  label: CATEGORY_LABELS[value],
+}));
+
 export type PantryItem = {
   id: string;
   ingredient: string;
@@ -48,30 +54,34 @@ export function listPantryItems(): Promise<PantryItem[]> {
   return fetchJson("/pantry");
 }
 
-export function createPantryItem(input: {
+export type NewPantryItem = {
   ingredient: string;
   quantity?: number;
   unit?: string;
   expirationDate?: string;
   category?: PantryCategory;
-}): Promise<PantryItem> {
+};
+
+// null clears a field; an omitted field is left unchanged.
+export type PantryItemUpdates = Partial<{
+  ingredient: string;
+  quantity: number | null;
+  unit: string | null;
+  expirationDate: string | null;
+  lowStock: boolean;
+  category: PantryCategory;
+}>;
+
+export function createPantryItem(input: NewPantryItem): Promise<PantryItem> {
   return fetchJson("/pantry", {
     method: "POST",
     body: JSON.stringify(input),
   });
 }
 
-// null clears a field; an omitted field is left unchanged.
 export function updatePantryItem(
   id: string,
-  updates: Partial<{
-    ingredient: string;
-    quantity: number | null;
-    unit: string | null;
-    expirationDate: string | null;
-    lowStock: boolean;
-    category: PantryCategory;
-  }>,
+  updates: PantryItemUpdates,
 ): Promise<PantryItem> {
   return fetchJson(`/pantry/${id}`, {
     method: "PATCH",

@@ -27,6 +27,10 @@ const groceryListSchema = z.object({
     ),
 });
 
+// Matches USE_SOON_DAYS in web/src/lib/freshness.ts, so the grocery list and
+// the pantry page agree on what "expires soon" means.
+const USE_SOON_DAYS = 3;
+
 type Freshness = "expired" | "soon" | "fresh" | "none";
 
 function classifyFreshness(expirationDate: string | null): Freshness {
@@ -49,7 +53,7 @@ function classifyFreshness(expirationDate: string | null): Freshness {
   );
 
   if (daysUntil < 0) return "expired";
-  if (daysUntil <= 3) return "soon";
+  if (daysUntil <= USE_SOON_DAYS) return "soon";
   return "fresh";
 }
 
