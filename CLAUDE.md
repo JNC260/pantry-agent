@@ -26,7 +26,7 @@ Request flow: `web` → (JWT-authed) `api` `/chat` → `pantry-agent` Mastra HTT
 
 ### `api` internals
 
-- `auth/` — password login (`POST /auth/login`, bcrypt-compares against `AUTH_PASSWORD` env hash) issuing a JWT; `JwtAuthGuard` protects other routes via `Authorization: Bearer` header.
+- `auth/` — password login (`POST /auth/login`, bcrypt-compares against `AUTH_PASSWORD_HASH` env hash) issuing a JWT; `JwtAuthGuard` protects other routes via `Authorization: Bearer` header.
 - `chat/` — `ChatController` (guarded) → `ChatService.sendMessage`, which POSTs to the Mastra server's `pantryAgent` generate endpoint and unwraps `{ text }`. `MASTRA_SERVER_URL` env var controls the target (default `http://localhost:4111`).
 - CORS origin is controlled by `WEB_ORIGIN` (default `http://localhost:3001`).
 
@@ -78,5 +78,5 @@ npm run lint   # eslint
 
 Each service loads its own `.env`:
 - `pantry-agent/.env` — Pinterest OAuth (`PINTEREST_CLIENT_ID`, `PINTEREST_CLIENT_SECRET`, `PINTEREST_REFRESH_TOKEN`), model provider keys, optional `MASTRA_DB_URL`/`MASTRA_DB_AUTH_TOKEN`, `PINTEREST_CACHE_DB_URL`/`PINTEREST_CACHE_DB_PATH`.
-- `api/.env` — `AUTH_PASSWORD` (bcrypt hash), `JWT_SECRET`, `MASTRA_SERVER_URL`, `WEB_ORIGIN`, `PORT`.
+- `api/.env` — `AUTH_PASSWORD_HASH` (bcrypt hash), `JWT_SECRET`, `MASTRA_SERVER_URL`, `WEB_ORIGIN`, `PORT`.
 - `web/.env.local` — `NEXT_PUBLIC_API_URL`.

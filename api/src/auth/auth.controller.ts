@@ -10,7 +10,7 @@ export class AuthController {
   async login(@Body('password') password: string) {
     const valid = await bcrypt.compare(
       password ?? '',
-      process.env.AUTH_PASSWORD ?? '',
+      process.env.AUTH_PASSWORD_HASH ?? '',
     );
 
     if (!valid) {
