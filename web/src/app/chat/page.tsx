@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -58,6 +58,8 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [loadingIndex, setLoadingIndex] = useState(0);
   const router = useRouter();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const hasScrolledRef = useRef(false);
 
   useEffect(() => {
     if (!localStorage.getItem("token")) {
@@ -68,6 +70,26 @@ export default function ChatPage() {
   useEffect(() => {
     if (unread) markRead();
   }, [unread, markRead]);
+
+  // After you send, show your message and the loading line at the bottom.
+  // When a reply lands, show it from its first line rather than jumping past
+  // it to the end. The first scroll (arriving on the page) is instant.
+  useEffect(() => {
+    const container = scrollRef.current;
+    const last = messages[messages.length - 1];
+    if (!container || !last) return;
+
+    const behavior = hasScrolledRef.current ? "smooth" : "instant";
+    hasScrolledRef.current = true;
+
+    if (last.role === "user") {
+      container.scrollTo({ top: container.scrollHeight, behavior });
+    } else {
+      container
+        .querySelector("[data-last-message]")
+        ?.scrollIntoView({ block: "start", behavior });
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (!sending) return;
@@ -94,7 +116,10 @@ export default function ChatPage() {
         <div className="relative mx-auto flex h-full max-w-5xl flex-col overflow-hidden rounded-app bg-sage-wash">
           <NestedArcs className="pointer-events-none absolute -right-16 -top-16 w-44 sm:w-64" />
 
-          <div className="relative flex-1 overflow-y-auto px-5 py-10 sm:px-12">
+          <div
+            ref={scrollRef}
+            className="relative flex-1 overflow-y-auto px-5 py-10 sm:px-12"
+          >
             <div className="flex max-w-2xl flex-col gap-7">
               {hydrated && messages.length === 0 && !sending && (
                 <div className="flex flex-col gap-2">
@@ -118,7 +143,10 @@ export default function ChatPage() {
                 ) : (
                   <div
                     key={i}
-                    className="max-w-[62ch] border-l-2 border-rosemary pl-5"
+                    data-last-message={
+                      i === messages.length - 1 ? true : undefined
+                    }
+                    className="max-w-[62ch] scroll-mt-6 border-l-2 border-rosemary pl-5"
                   >
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
