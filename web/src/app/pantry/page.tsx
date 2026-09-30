@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, SelectField, TextField } from "@/components/ui";
+import { Button, Card, Modal, SelectField, TextField } from "@/components/ui";
 import { AppHeader } from "@/components/AppHeader";
 import { AppleCoreIcon, CitrusIcon } from "@/components/graphics";
 import {
@@ -267,6 +267,11 @@ export default function PantryPage() {
   const [addForm, setAddForm] = useState<Draft>(emptyDraft);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  // Confirms the last add, since the fields clearing is otherwise the only
+  // sign it worked.
+  const [lastAdded, setLastAdded] = useState<string | null>(null);
+  const ingredientInputRef = useRef<HTMLInputElement>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Draft | null>(null);
@@ -281,10 +286,12 @@ export default function PantryPage() {
     key: "ingredient",
     dir: "asc",
   });
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
   const [openNotice, setOpenNotice] = useState<NoticeKind | null>(null);
+  const noticesRef = useRef<HTMLDivElement>(null);
 
   const [flaggingId, setFlaggingId] = useState<string | null>(null);
   const [flagError, setFlagError] = useState<{
@@ -317,6 +324,24 @@ export default function PantryPage() {
     };
   }, []);
 
+  // The notice lists float over the page, so close them like any popover:
+  // on a click elsewhere or Escape.
+  useEffect(() => {
+    if (!openNotice) return;
+    function onPointerDown(e: PointerEvent) {
+      if (!noticesRef.current?.contains(e.target as Node)) setOpenNotice(null);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpenNotice(null);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [openNotice]);
+
   async function retryLoad() {
     setLoading(true);
     setLoadError(null);
@@ -330,6 +355,14 @@ export default function PantryPage() {
     }
   }
 
+  // Every open starts from an empty form.
+  function openAdd() {
+    setAddForm(emptyDraft);
+    setAddError(null);
+    setLastAdded(null);
+    setAddOpen(true);
+  }
+
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     const ingredient = addForm.ingredient.trim();
@@ -340,6 +373,7 @@ export default function PantryPage() {
 
     setAdding(true);
     setAddError(null);
+    setLastAdded(null);
     try {
       const input: Parameters<typeof createPantryItem>[0] = {
         ingredient,
@@ -352,7 +386,10 @@ export default function PantryPage() {
 
       const created = await createPantryItem(input);
       setItems((prev) => sortByIngredient([...prev, created]));
+      // Stay open for the next item: clear the fields and go back to the top.
       setAddForm(emptyDraft);
+      setLastAdded(created.ingredient);
+      ingredientInputRef.current?.focus();
     } catch {
       setAddError("Couldn't add that item. Try again.");
     } finally {
@@ -519,15 +556,26 @@ export default function PantryPage() {
     ...presentCategories.map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
   ];
 
-  const filtering = statusFilter !== "all" || activeCategory !== "all";
+  const query = search.trim().toLowerCase();
+  const filtering =
+    query !== "" || statusFilter !== "all" || activeCategory !== "all";
   const visible = sortItems(
     items.filter(
       (it) =>
+        it.ingredient.toLowerCase().includes(query) &&
         matchesStatus(it, statusFilter) &&
         (activeCategory === "all" || it.category === activeCategory),
     ),
     sort,
   );
+
+  // Existing names to suggest while adding, so "Chicken breast" doesn't
+  // come back as "chicken breasts". De-duplicated ignoring case.
+  const ingredientSuggestions = [
+    ...new Map(
+      items.map((it) => [it.ingredient.toLowerCase(), it.ingredient]),
+    ).values(),
+  ].sort((a, b) => a.localeCompare(b));
 
   // Clicking the active column flips its direction; a new column starts
   // ascending.
@@ -540,6 +588,7 @@ export default function PantryPage() {
   }
 
   function clearFilters() {
+    setSearch("");
     setStatusFilter("all");
     setCategoryFilter("all");
   }
@@ -549,16 +598,19 @@ export default function PantryPage() {
       <AppHeader />
       <main className="flex-1 px-4 py-10 sm:px-6">
         <div className="mx-auto flex max-w-4xl flex-col gap-8">
-          <h1 className="font-display text-[32px] font-medium leading-tight">
-            Your pantry
-          </h1>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h1 className="font-display text-[32px] font-medium leading-tight">
+              Your pantry
+            </h1>
+            <Button onClick={openAdd}>Add item</Button>
+          </div>
 
           {notices.length > 0 && (
-            <div className="flex flex-wrap items-start gap-2">
+            <div ref={noticesRef} className="flex flex-wrap items-start gap-2">
               {notices.map((notice) => {
                 const open = notice.kind === openNotice;
                 return (
-                  <div key={notice.kind} className="flex flex-col">
+                  <div key={notice.kind} className="relative">
                     <button
                       type="button"
                       aria-expanded={open}
@@ -589,11 +641,11 @@ export default function PantryPage() {
                       </svg>
                     </button>
                     {open && (
-                      // w-0 + min-w-full: as wide as the button above, never
-                      // wider, so long lists wrap instead of stretching it.
+                      // Floats over the content below rather than pushing it
+                      // down; inset-x-0 keeps it exactly the button's width.
                       <div
                         id={`notice-${notice.kind}`}
-                        className={`w-0 min-w-full rounded-b-app border-t border-walnut/20 px-3 pb-3 pt-2.5 ${notice.wash}`}
+                        className={`absolute inset-x-0 top-full z-20 rounded-b-app border border-walnut/30 border-t-walnut/20 px-3 pb-3 pt-2.5 ${notice.wash}`}
                       >
                         <NoticeItems
                           items={notice.items}
@@ -607,69 +659,95 @@ export default function PantryPage() {
             </div>
           )}
 
-          <form
-            onSubmit={handleAdd}
-            className="flex flex-col gap-3"
-            aria-label="Add an item"
+          <Modal
+            open={addOpen}
+            onClose={() => setAddOpen(false)}
+            title="Add items"
+            initialFocusRef={ingredientInputRef}
           >
-            <div className="grid grid-cols-2 items-end gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,0.45fr)_minmax(0,0.6fr)_minmax(0,1fr)_auto]">
-              <TextField
-                label="Ingredient"
-                value={addForm.ingredient}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, ingredient: e.target.value }))
-                }
-                placeholder="e.g. Parmesan"
-                className="col-span-2 lg:col-span-1"
-              />
-              <SelectField
-                label="Category"
-                value={addForm.category}
-                onChange={(e) =>
-                  setAddForm((f) => ({
-                    ...f,
-                    category: e.target.value as PantryCategory,
-                  }))
-                }
-                options={categoryOptions}
-                className="col-span-2 lg:col-span-1"
-              />
-              <TextField
-                label="Quantity"
-                value={addForm.quantity}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, quantity: e.target.value }))
-                }
-                placeholder="1"
-                type="number"
-              />
-              <TextField
-                label="Unit"
-                value={addForm.unit}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, unit: e.target.value }))
-                }
-                placeholder="wedge"
-              />
-              <TextField
-                label="Expires"
-                value={addForm.expirationDate}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, expirationDate: e.target.value }))
-                }
-                type="date"
-                className="col-span-2 lg:col-span-1"
-              />
-              <Button
-                type="submit"
-                disabled={adding}
-                className="col-span-2 justify-self-start lg:col-span-1"
-              >
-                {adding ? "Adding…" : "Add item"}
-              </Button>
-            </div>
-            {addError && <p className="text-sm text-paprika">{addError}</p>}
-          </form>
+            <form onSubmit={handleAdd} className="flex flex-col gap-5">
+              <div className="grid grid-cols-2 gap-3">
+                <TextField
+                  ref={ingredientInputRef}
+                  label="Ingredient"
+                  value={addForm.ingredient}
+                  onChange={(e) =>
+                    setAddForm((f) => ({ ...f, ingredient: e.target.value }))
+                  }
+                  placeholder="e.g. Parmesan"
+                  list="pantry-ingredient-suggestions"
+                  autoComplete="off"
+                  // Hide Chrome's heavy datalist arrow; suggestions still
+                  // appear as you type. Needs !important to beat Chrome's own
+                  // style for it.
+                  inputClassName="bg-linen [&::-webkit-calendar-picker-indicator]:hidden!"
+                  className="col-span-2"
+                />
+                <datalist id="pantry-ingredient-suggestions">
+                  {ingredientSuggestions.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+                <SelectField
+                  label="Category"
+                  value={addForm.category}
+                  onChange={(e) =>
+                    setAddForm((f) => ({
+                      ...f,
+                      category: e.target.value as PantryCategory,
+                    }))
+                  }
+                  options={categoryOptions}
+                />
+                <TextField
+                  label="Expires"
+                  value={addForm.expirationDate}
+                  onChange={(e) =>
+                    setAddForm((f) => ({ ...f, expirationDate: e.target.value }))
+                  }
+                  type="date"
+                />
+                <TextField
+                  label="Quantity"
+                  value={addForm.quantity}
+                  onChange={(e) =>
+                    setAddForm((f) => ({ ...f, quantity: e.target.value }))
+                  }
+                  placeholder="1"
+                  type="number"
+                />
+                <TextField
+                  label="Unit"
+                  value={addForm.unit}
+                  onChange={(e) =>
+                    setAddForm((f) => ({ ...f, unit: e.target.value }))
+                  }
+                  placeholder="wedge"
+                />
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                <p aria-live="polite" className="mr-auto text-sm">
+                  {addError ? (
+                    <span className="text-paprika">{addError}</span>
+                  ) : (
+                    lastAdded && (
+                      <span className="text-rosemary">Added {lastAdded}.</span>
+                    )
+                  )}
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setAddOpen(false)}
+                >
+                  Done
+                </Button>
+                <Button type="submit" disabled={adding}>
+                  {adding ? "Adding…" : "Add item"}
+                </Button>
+              </div>
+            </form>
+          </Modal>
 
           {loading && (
             <p className="font-display italic text-walnut">
@@ -688,13 +766,21 @@ export default function PantryPage() {
 
           {!loading && !loadError && items.length === 0 && (
             <p className="text-walnut">
-              Your pantry is empty. Add your first item above.
+              Your pantry is empty. Use Add item to stock it.
             </p>
           )}
 
           {!loading && !loadError && items.length > 0 && (
             <div className="flex flex-col gap-5">
               <div className="flex flex-wrap items-end gap-x-3 gap-y-3">
+                <TextField
+                  label="Search"
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search ingredients…"
+                  className="w-52"
+                />
                 <SelectField
                   label="Status"
                   value={statusFilter}
@@ -714,9 +800,14 @@ export default function PantryPage() {
                   className="w-56"
                 />
                 {filtering && (
-                  <p className="basis-full pb-3 text-sm tabular-nums text-walnut sm:ml-auto sm:basis-auto">
-                    Showing {visible.length} of {items.length}
-                  </p>
+                  <div className="flex basis-full items-baseline gap-4 pb-3 sm:ml-auto sm:basis-auto">
+                    <p className="text-sm tabular-nums text-walnut">
+                      {visible.length} of {items.length} items
+                    </p>
+                    <Button variant="text" onClick={clearFilters}>
+                      Clear filters
+                    </Button>
+                  </div>
                 )}
               </div>
 
@@ -774,7 +865,7 @@ export default function PantryPage() {
                         >
                           {isEditing && editDraft ? (
                             <div className="flex flex-col gap-3">
-                              <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
+                              <div className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,0.5fr)_minmax(0,0.7fr)_minmax(0,1fr)]">
                                 <TextField
                                   label="Ingredient"
                                   value={editDraft.ingredient}
@@ -783,7 +874,7 @@ export default function PantryPage() {
                                       d ? { ...d, ingredient: e.target.value } : d,
                                     )
                                   }
-                                  className="col-span-2 sm:col-span-4"
+                                  className="col-span-2 lg:col-span-1"
                                 />
                                 <SelectField
                                   label="Category"
@@ -800,7 +891,7 @@ export default function PantryPage() {
                                     )
                                   }
                                   options={categoryOptions}
-                                  className="col-span-2"
+                                  className="col-span-2 lg:col-span-1"
                                 />
                                 <TextField
                                   label="Quantity"
@@ -832,7 +923,7 @@ export default function PantryPage() {
                                     )
                                   }
                                   type="date"
-                                  className="col-span-2"
+                                  className="col-span-2 lg:col-span-1"
                                 />
                               </div>
                               {editError && (
@@ -912,14 +1003,17 @@ export default function PantryPage() {
                               </span>
 
                               {isDeleting ? (
-                                <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1 sm:col-span-1 sm:justify-self-end">
-                                  <span className="text-sm">Delete this item?</span>
+                                // Kept short enough to fit the 190px actions
+                                // column on one line.
+                                <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1 whitespace-nowrap sm:col-span-1 sm:justify-self-end">
+                                  <span className="text-sm">Delete?</span>
                                   <Button
                                     variant="danger-text"
                                     onClick={() => confirmDelete(item.id)}
                                     disabled={deleting}
+                                    aria-label={`Yes, delete ${item.ingredient}`}
                                   >
-                                    {deleting ? "Deleting…" : "Delete"}
+                                    {deleting ? "Deleting…" : "Yes"}
                                   </Button>
                                   <Button
                                     variant="text"
@@ -929,7 +1023,7 @@ export default function PantryPage() {
                                     Cancel
                                   </Button>
                                   {deleteError && (
-                                    <span className="basis-full text-sm text-paprika">
+                                    <span className="basis-full whitespace-normal text-sm text-paprika">
                                       {deleteError}
                                     </span>
                                   )}

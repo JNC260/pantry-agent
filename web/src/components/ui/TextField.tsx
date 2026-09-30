@@ -1,6 +1,8 @@
-import { InputHTMLAttributes, useId } from "react";
+import { ComponentProps, useId } from "react";
 
-type TextFieldProps = InputHTMLAttributes<HTMLInputElement> & {
+// ComponentProps (not InputHTMLAttributes) so a `ref` passes through to the
+// <input> — React 19 treats ref as a regular prop.
+type TextFieldProps = ComponentProps<"input"> & {
   label?: string;
   inputClassName?: string;
 };
