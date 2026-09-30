@@ -114,47 +114,37 @@ function itemAnchor(item: PantryItem): string {
   return `item-${item.id}`;
 }
 
-// A callout above the list naming items by expiry. Each name jumps to its row
-// in the list below, where the edit/delete actions live.
-function ExpiryNotice({
-  icon,
-  title,
-  className,
-  titleClassName = "",
-  items,
-  describe,
-}: {
-  icon: React.ReactNode;
+type NoticeKind = "expired" | "soon";
+
+type Notice = {
+  kind: NoticeKind;
+  Icon: (props: { className?: string }) => React.ReactNode;
   title: string;
-  className: string;
-  titleClassName?: string;
+  wash: string;
   items: PantryItem[];
-  // Text after the item name, e.g. " by Oct 1, 2026".
+  // Shown after the item name, e.g. "by Oct 1, 2026".
   describe: (date: string) => string;
-}) {
+};
+
+// The expanded list for a notice. Each name jumps to its row in the table
+// below, where the edit/delete actions live.
+function NoticeItems({ items, describe }: Pick<Notice, "items" | "describe">) {
   return (
-    <div
-      className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-app px-4 py-3.5 ${className}`}
-    >
-      {icon}
-      <h2 className={`font-display text-lg font-medium ${titleClassName}`}>
-        {title}
-      </h2>
-      <p className="text-sm">
-        {items.map((it, i) => (
-          <span key={it.id}>
-            {i > 0 && " · "}
-            <a
-              href={`#${itemAnchor(it)}`}
-              className="underline decoration-current/40 underline-offset-[3px] transition-colors hover:decoration-current"
-            >
-              {it.ingredient}
-            </a>
+    <ul className="flex flex-col gap-2 text-sm">
+      {items.map((it) => (
+        <li key={it.id} className="flex flex-col items-start">
+          <a
+            href={`#${itemAnchor(it)}`}
+            className="underline decoration-current/40 underline-offset-[3px] transition-colors hover:decoration-current"
+          >
+            {it.ingredient}
+          </a>
+          <span className="text-walnut">
             {describe(formatDate(it.expirationDate!))}
           </span>
-        ))}
-      </p>
-    </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -241,14 +231,14 @@ function SortHeader({
     <button
       type="button"
       onClick={() => onSort(column)}
-      className={`inline-flex cursor-pointer items-center gap-1 text-sm font-medium transition-colors ${
-        active ? "text-ink" : "text-walnut hover:text-rosemary"
+      className={`inline-flex cursor-pointer items-center gap-1.5 font-display text-[17px] font-medium text-ink transition-colors ${
+        active ? "" : "hover:text-rosemary"
       } ${className}`}
     >
       {label}
       {active && (
         <>
-          <svg aria-hidden="true" viewBox="0 0 12 12" className="size-3">
+          <svg aria-hidden="true" viewBox="0 0 12 12" className="size-3.5">
             <path
               d={sort.dir === "asc" ? "M3 7.5l3-3 3 3" : "M3 4.5l3 3 3-3"}
               fill="none"
@@ -293,6 +283,8 @@ export default function PantryPage() {
   });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+
+  const [openNotice, setOpenNotice] = useState<NoticeKind | null>(null);
 
   const [flaggingId, setFlaggingId] = useState<string | null>(null);
   const [flagError, setFlagError] = useState<{
@@ -491,6 +483,28 @@ export default function PantryPage() {
     .filter((it) => freshness(it) === "soon")
     .sort(byExpiration);
 
+  const notices: Notice[] = [];
+  if (expired.length > 0) {
+    notices.push({
+      kind: "expired",
+      Icon: AppleCoreIcon,
+      title: "Toss these now",
+      wash: "bg-paprika-wash",
+      items: expired,
+      describe: (date) => `expired ${date}`,
+    });
+  }
+  if (useSoon.length > 0) {
+    notices.push({
+      kind: "soon",
+      Icon: CitrusIcon,
+      title: "Use these first",
+      wash: "bg-saffron-wash",
+      items: useSoon,
+      describe: (date) => `by ${date}`,
+    });
+  }
+
   // Only offer categories that have items. If the chosen one empties out
   // (last item deleted or recategorized), fall back to all categories.
   const presentCategories = PANTRY_CATEGORIES.filter((c) =>
@@ -539,27 +553,57 @@ export default function PantryPage() {
             Your pantry
           </h1>
 
-          {(expired.length > 0 || useSoon.length > 0) && (
-            <div className="flex flex-col gap-3">
-              {expired.length > 0 && (
-                <ExpiryNotice
-                  icon={<AppleCoreIcon className="h-[22px] w-[22px] flex-none" />}
-                  title="Expired — consider discarding"
-                  className="bg-paprika-wash"
-                  titleClassName="text-paprika"
-                  items={expired}
-                  describe={(date) => `, expired ${date}`}
-                />
-              )}
-              {useSoon.length > 0 && (
-                <ExpiryNotice
-                  icon={<CitrusIcon className="h-[22px] w-[22px] flex-none" />}
-                  title="Use these first"
-                  className="bg-saffron-wash"
-                  items={useSoon}
-                  describe={(date) => ` by ${date}`}
-                />
-              )}
+          {notices.length > 0 && (
+            <div className="flex flex-wrap items-start gap-2">
+              {notices.map((notice) => {
+                const open = notice.kind === openNotice;
+                return (
+                  <div key={notice.kind} className="flex flex-col">
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      aria-controls={open ? `notice-${notice.kind}` : undefined}
+                      onClick={() => setOpenNotice(open ? null : notice.kind)}
+                      className={`inline-flex cursor-pointer items-center gap-2.5 rounded-app py-2 pl-3 pr-2.5 text-ink transition-shadow hover:ring-1 hover:ring-walnut/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rosemary ${open ? "rounded-b-none" : ""} ${notice.wash}`}
+                    >
+                      <notice.Icon className="size-[18px] flex-none" />
+                      <span className="font-display text-base font-medium">
+                        {notice.title}
+                      </span>
+                      <span className="text-sm tabular-nums text-walnut">
+                        {notice.items.length}
+                      </span>
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 12 12"
+                        className={`size-3 text-walnut transition-transform ${open ? "rotate-180" : ""}`}
+                      >
+                        <path
+                          d="M3 4.5l3 3 3-3"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                    {open && (
+                      // w-0 + min-w-full: as wide as the button above, never
+                      // wider, so long lists wrap instead of stretching it.
+                      <div
+                        id={`notice-${notice.kind}`}
+                        className={`w-0 min-w-full rounded-b-app border-t border-walnut/20 px-3 pb-3 pt-2.5 ${notice.wash}`}
+                      >
+                        <NoticeItems
+                          items={notice.items}
+                          describe={notice.describe}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -707,7 +751,7 @@ export default function PantryPage() {
                       column="quantity"
                       sort={sort}
                       onSort={toggleSort}
-                      className="sm:justify-self-end"
+                      className="justify-self-start"
                     />
                     <SortHeader
                       label="Expires"
@@ -849,7 +893,7 @@ export default function PantryPage() {
                                 {CATEGORY_LABELS[item.category]}
                               </span>
                               <span
-                                className={`text-right text-[15px] tabular-nums ${item.lowStock ? "text-saffron" : ""}`}
+                                className={`text-[15px] tabular-nums ${item.lowStock ? "text-saffron" : ""}`}
                               >
                                 {item.quantity !== null && item.quantity}
                                 {item.unit && (
