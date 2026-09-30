@@ -11,7 +11,7 @@ const dbUrl =
 
 console.log("PINTEREST CACHE DB PATH:", dbUrl);
 
-const client = createClient({
+export const client = createClient({
   url: dbUrl,
   authToken: process.env.PINTEREST_CACHE_DB_AUTH_TOKEN,
 });
