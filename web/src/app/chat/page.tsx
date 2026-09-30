@@ -43,10 +43,22 @@ const markdownComponents: Components = {
   ),
 };
 
+const LOADING_MESSAGES = [
+  "Simmering…",
+  "Percolating…",
+  "Chopping ingredients…",
+  "Whisking…",
+  "Preheating the oven…",
+  "Reducing the sauce…",
+  "Tasting for seasoning…",
+  "Plating up…",
+];
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [loadingIndex, setLoadingIndex] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -54,6 +66,14 @@ export default function ChatPage() {
       router.push("/login");
     }
   }, [router]);
+
+  useEffect(() => {
+    if (!sending) return;
+    const id = setInterval(() => {
+      setLoadingIndex((i) => (i + 1) % LOADING_MESSAGES.length);
+    }, 2000);
+    return () => clearInterval(id);
+  }, [sending]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,6 +83,7 @@ export default function ChatPage() {
     const history = [...messages, userMessage];
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    setLoadingIndex(0);
     setSending(true);
 
     try {
@@ -127,7 +148,7 @@ export default function ChatPage() {
               )}
               {sending && (
                 <p className="font-display italic text-rosemary">
-                  Checking your boards…
+                  {LOADING_MESSAGES[loadingIndex]}
                 </p>
               )}
             </div>
