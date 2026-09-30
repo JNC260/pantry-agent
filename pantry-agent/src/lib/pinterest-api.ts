@@ -63,3 +63,31 @@ export async function pinterestGet<T = any>(
     }
   }
 }
+
+const PAGE_SIZE = 250; // Pinterest's maximum (default is 25)
+const MAX_PAGES = 40; // safety stop: 10,000 items
+
+// GET every page of a Pinterest v5 list endpoint by following `bookmark`.
+// Throws if any page fails, so callers never cache a partial list.
+export async function pinterestGetAll<T = any>(
+  path: string,
+  params: Record<string, string | number> = {},
+): Promise<T[]> {
+  const items: T[] = [];
+  let bookmark: string | null = null;
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const data: { items: T[]; bookmark?: string | null } = await pinterestGet(
+      path,
+      { ...params, page_size: PAGE_SIZE, ...(bookmark ? { bookmark } : {}) },
+    );
+    items.push(...data.items);
+    bookmark = data.bookmark || null;
+    if (!bookmark) return items;
+  }
+
+  console.warn(
+    `[pinterest-api] GET ${path} stopped after ${MAX_PAGES} pages (${items.length} items); the rest were skipped`,
+  );
+  return items;
+}
