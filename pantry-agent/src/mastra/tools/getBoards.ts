@@ -36,7 +36,16 @@ export const getBoardsTool = createTool({
       }
     }
 
-    const data = await pinterestGet("/boards");
+    let data;
+    try {
+      data = await pinterestGet("/boards");
+    } catch (err) {
+      // Stale boards beat no boards; pinterestGet already logged the failure.
+      const cached = await getCachedBoards();
+      if (cached.length === 0) throw err;
+      console.warn("[get-boards] Pinterest unavailable; serving cached boards");
+      return { boards: cached };
+    }
 
     const boards = data.items.map((b: any) => ({
       id: b.id,

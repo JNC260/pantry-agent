@@ -3,6 +3,7 @@ import { PinoLogger } from "@mastra/loggers";
 import { LibSQLStore } from "@mastra/libsql";
 import { DuckDBStore } from "@mastra/duckdb";
 import { MastraCompositeStore } from "@mastra/core/storage";
+import { registerApiRoute } from "@mastra/core/server";
 import {
   Observability,
   MastraStorageExporter,
@@ -13,6 +14,10 @@ import { pantryAgent } from "./agents/pantry-agent";
 import { recipeExtractionAgent } from "./agents/extraction-agent";
 import { pinSelectionAgent } from "./agents/pin-selection-agent";
 import { groceryMatchAgent } from "./agents/grocery-match-agent";
+import {
+  checkPinterestConnection,
+  startPinterestHealthChecks,
+} from "../lib/pinterest-health";
 
 export const mastra = new Mastra({
   workflows: {},
@@ -23,6 +28,22 @@ export const mastra = new Mastra({
     groceryMatchAgent,
   },
   scorers: {},
+  server: {
+    apiRoutes: [
+      registerApiRoute("/health/pinterest", {
+        method: "GET",
+        // createHandler runs once at server startup, which is where the
+        // startup + daily Pinterest checks are kicked off.
+        createHandler: async () => {
+          startPinterestHealthChecks();
+          return async (c) => {
+            const health = await checkPinterestConnection();
+            return c.json(health, health.ok ? 200 : 503);
+          };
+        },
+      }),
+    ],
+  },
   storage: new MastraCompositeStore({
     id: "composite-storage",
     default: new LibSQLStore({

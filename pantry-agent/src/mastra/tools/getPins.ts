@@ -37,7 +37,16 @@ export const getPinsFromBoardTool = createTool({
       if (pins.length > 0) return { pins };
     }
 
-    const data = await pinterestGet(`/boards/${boardId}/pins`);
+    let data;
+    try {
+      data = await pinterestGet(`/boards/${boardId}/pins`);
+    } catch (err) {
+      // Stale pins beat no pins; pinterestGet already logged the failure.
+      const cached = await getCachedPins(boardId);
+      if (cached.length === 0) throw err;
+      console.warn(`[get-pins] Pinterest unavailable; serving cached pins for board ${boardId}`);
+      return { pins: cached };
+    }
 
     const pins = data.items.map((p: any) => ({
       id: p.id,
