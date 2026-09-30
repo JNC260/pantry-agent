@@ -1,15 +1,18 @@
 import {
-  IsString,
-  IsOptional,
-  IsNumber,
-  IsDateString,
   IsBoolean,
+  IsDateString,
   IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
 } from 'class-validator';
 import { PANTRY_CATEGORIES, type PantryCategory } from '../categories';
+import { OptionalNotNull } from './optional-not-null';
 
 export class CreatePantryItemDto {
   @IsString()
+  @IsNotEmpty()
   ingredient!: string;
 
   @IsOptional()
@@ -24,11 +27,11 @@ export class CreatePantryItemDto {
   @IsDateString()
   expirationDate?: string;
 
-  @IsOptional()
+  @OptionalNotNull()
   @IsBoolean()
   lowStock?: boolean;
 
-  @IsOptional()
+  @OptionalNotNull()
   @IsIn(PANTRY_CATEGORIES)
   category?: PantryCategory;
 }

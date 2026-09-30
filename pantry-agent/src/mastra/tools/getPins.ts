@@ -1,6 +1,6 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { pinterestGetAll } from "../../lib/pinterest-api";
+import { pinterestGetAll, type PinterestPin } from "../../lib/pinterest-api";
 import {
   getCachedPins,
   pinsAreFresh,
@@ -39,7 +39,7 @@ export const getPinsFromBoardTool = createTool({
 
     let items;
     try {
-      items = await pinterestGetAll(`/boards/${boardId}/pins`);
+      items = await pinterestGetAll<PinterestPin>(`/boards/${boardId}/pins`);
     } catch (err) {
       // Stale pins beat no pins; pinterestGet already logged the failure.
       const cached = await getCachedPins(boardId);
@@ -48,10 +48,10 @@ export const getPinsFromBoardTool = createTool({
       return { pins: cached };
     }
 
-    const pins = items.map((p: any) => ({
+    const pins = items.map((p) => ({
       id: p.id,
       title: p.title ?? null,
-      sourceLink: p.link ?? null, // this is the URL back to the original recipe site
+      sourceLink: p.link ?? null,
     }));
 
     await replaceCachedPins(boardId, pins);

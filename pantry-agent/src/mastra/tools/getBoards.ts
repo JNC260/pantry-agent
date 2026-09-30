@@ -1,6 +1,6 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { pinterestGetAll } from "../../lib/pinterest-api";
+import { pinterestGetAll, type PinterestBoard } from "../../lib/pinterest-api";
 import {
   replaceCachedBoards,
   boardsAreFresh,
@@ -34,7 +34,7 @@ export const getBoardsTool = createTool({
 
     let items;
     try {
-      items = await pinterestGetAll("/boards");
+      items = await pinterestGetAll<PinterestBoard>("/boards");
     } catch (err) {
       // Stale boards beat no boards; pinterestGet already logged the failure.
       const cached = await getCachedBoards();
@@ -43,7 +43,7 @@ export const getBoardsTool = createTool({
       return { boards: cached };
     }
 
-    const boards = items.map((b: any) => ({
+    const boards = items.map((b) => ({
       id: b.id,
       name: b.name,
     }));

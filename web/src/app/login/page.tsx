@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, TextField } from "@/components/ui";
 import { Wordmark } from "@/components/Masthead";
 import { PanelStillLife } from "@/components/graphics";
+import { TOKEN_KEY } from "@/lib/storage-keys";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
@@ -29,7 +30,7 @@ export default function LoginPage() {
       }
 
       const { token } = await res.json();
-      localStorage.setItem("token", token);
+      localStorage.setItem(TOKEN_KEY, token);
       router.push("/chat");
     } catch {
       setError("That password didn’t match. Check it and try again.");

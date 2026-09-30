@@ -21,6 +21,10 @@ const recipeSchema = z.object({
 
 const tavilyExtractTool = createTavilyExtractTool();
 
+// Recipe pages are mostly ads, comments, and life stories; the ingredients
+// and steps land well within this, and it keeps the extraction prompt small.
+const MAX_PAGE_CHARS = 15_000;
+
 export const extractRecipeTool = createTool({
   id: "extract-recipe",
   description:
@@ -61,7 +65,7 @@ export const extractRecipeTool = createTool({
     const result = await mastra
       .getAgent("recipeExtractionAgent")
       .generate(
-        `Extract the recipe from this page content...\n\nCONTENT:\n${pageContent.rawContent.slice(0, 15000)}`,
+        `Extract the recipe from this page content...\n\nCONTENT:\n${pageContent.rawContent.slice(0, MAX_PAGE_CHARS)}`,
         { structuredOutput: { schema: recipeSchema } },
       );
     return result.object;

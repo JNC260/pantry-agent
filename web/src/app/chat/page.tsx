@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button, TextField } from "@/components/ui";
 import { AppHeader } from "@/components/AppHeader";
 import { NestedArcs } from "@/components/graphics";
 import { useChat } from "@/lib/chat-context";
+import { useRequireAuth } from "@/lib/use-require-auth";
 
 const markdownComponents: Components = {
   p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
@@ -55,17 +55,11 @@ const LOADING_MESSAGES = [
 export default function ChatPage() {
   const { messages, sending, hydrated, unread, send, clear, markRead } =
     useChat();
+  useRequireAuth();
   const [input, setInput] = useState("");
   const [loadingIndex, setLoadingIndex] = useState(0);
-  const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef(false);
-
-  useEffect(() => {
-    if (!localStorage.getItem("token")) {
-      router.push("/login");
-    }
-  }, [router]);
 
   useEffect(() => {
     if (unread) markRead();

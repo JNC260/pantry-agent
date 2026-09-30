@@ -1,7 +1,7 @@
-import { CHAT_HISTORY_KEY } from "@/lib/storage-keys";
+import { CHAT_HISTORY_KEY, TOKEN_KEY } from "@/lib/storage-keys";
 
 export async function authedFetch(path: string, options: RequestInit = {}) {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem(TOKEN_KEY);
 
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
     ...options,
@@ -13,7 +13,7 @@ export async function authedFetch(path: string, options: RequestInit = {}) {
   });
 
   if (res.status === 401) {
-    localStorage.removeItem("token");
+    localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(CHAT_HISTORY_KEY);
     // A full page load rather than router.push: this runs outside React (no
     // router here), and it drops any in-memory state from the old session.

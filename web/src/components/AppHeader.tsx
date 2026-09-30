@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Masthead } from "@/components/Masthead";
 import { useChat } from "@/lib/chat-context";
+import { TOKEN_KEY } from "@/lib/storage-keys";
 
 const navLinks = [
   { href: "/chat", label: "Chat" },
@@ -24,7 +25,7 @@ export function AppHeader() {
 
   function handleLogout() {
     clear();
-    localStorage.removeItem("token");
+    localStorage.removeItem(TOKEN_KEY);
     router.push("/login");
   }
 

@@ -20,8 +20,8 @@ export async function checkPinterestConnection(): Promise<PinterestHealth> {
         ? new Date(stored.refreshTokenExpiresAt).toISOString()
         : null,
     };
-  } catch (err: any) {
-    return { ok: false, error: err.message };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
 

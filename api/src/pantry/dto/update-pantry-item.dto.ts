@@ -1,35 +1,41 @@
 import {
-  IsString,
-  IsOptional,
-  IsNumber,
-  IsDateString,
   IsBoolean,
+  IsDateString,
   IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
 } from 'class-validator';
 import { PANTRY_CATEGORIES, type PantryCategory } from '../categories';
+import { OptionalNotNull } from './optional-not-null';
 
+// Not PartialType(CreatePantryItemDto): that marks every field @IsOptional,
+// which accepts null. Here an omitted field is left unchanged, null clears
+// the fields that can be empty, and null is rejected for the rest.
 export class UpdatePantryItemDto {
-  @IsOptional()
+  @OptionalNotNull()
   @IsString()
+  @IsNotEmpty()
   ingredient?: string;
 
   @IsOptional()
   @IsNumber()
-  quantity?: number;
+  quantity?: number | null;
 
   @IsOptional()
   @IsString()
-  unit?: string;
+  unit?: string | null;
 
   @IsOptional()
   @IsDateString()
-  expirationDate?: string;
+  expirationDate?: string | null;
 
-  @IsOptional()
+  @OptionalNotNull()
   @IsBoolean()
   lowStock?: boolean;
 
-  @IsOptional()
+  @OptionalNotNull()
   @IsIn(PANTRY_CATEGORIES)
   category?: PantryCategory;
 }

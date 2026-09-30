@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import type { Row, Value } from '@libsql/client';
 import { randomUUID } from 'node:crypto';
 import { pantryDb, ensurePantryTable } from './pantry.db';
+import { OWNER_ID } from '../auth/owner';
 import type { PantryCategory } from './categories';
+import type { CreatePantryItemDto } from './dto/create-pantry-item.dto';
+import type { UpdatePantryItemDto } from './dto/update-pantry-item.dto';
 
 export type PantryItem = {
   id: string;
@@ -14,8 +17,6 @@ export type PantryItem = {
   lowStock: boolean;
   category: PantryCategory;
 };
-
-const OWNER_ID = 'owner'; // single-user for now, matches the JWT's sub claim
 
 @Injectable()
 export class PantryService {
@@ -38,14 +39,7 @@ export class PantryService {
     return rowToPantryItem(result.rows[0]);
   }
 
-  async create(input: {
-    ingredient: string;
-    quantity?: number;
-    unit?: string;
-    expirationDate?: string;
-    lowStock?: boolean;
-    category?: PantryCategory;
-  }): Promise<PantryItem> {
+  async create(input: CreatePantryItemDto): Promise<PantryItem> {
     await ensurePantryTable();
     const id = randomUUID();
     const createdAt = Date.now();
@@ -81,14 +75,7 @@ export class PantryService {
 
   async update(
     id: string,
-    updates: Partial<{
-      ingredient: string;
-      quantity: number | null;
-      unit: string | null;
-      expirationDate: string | null;
-      lowStock: boolean;
-      category: PantryCategory;
-    }>,
+    updates: UpdatePantryItemDto,
   ): Promise<PantryItem | null> {
     await ensurePantryTable();
     const existing = await this.get(id);

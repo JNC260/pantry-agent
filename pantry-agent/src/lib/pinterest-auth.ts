@@ -17,6 +17,15 @@ const EARLY_REFRESH_MS = 60_000;
 // refreshes would race to spend the same one.
 let inflight: Promise<string> | null = null;
 
+// Pinterest's POST /oauth/token response for a refresh_token grant.
+type PinterestTokenResponse = {
+  access_token: string;
+  expires_in: number; // seconds
+  refresh_token?: string;
+  refresh_token_expires_in?: number; // seconds
+  refresh_token_expires_at?: number; // epoch seconds
+};
+
 function isValid(
   token: string | null,
   expiry: number,
@@ -81,9 +90,9 @@ async function loadOrRefreshToken(): Promise<string> {
 
   const refreshToken = current?.refreshToken ?? envRefreshToken;
 
-  let data: any;
+  let data: PinterestTokenResponse;
   try {
-    const response = await axios.post(
+    const response = await axios.post<PinterestTokenResponse>(
       "https://api.pinterest.com/v5/oauth/token",
       new URLSearchParams({
         grant_type: "refresh_token",
@@ -99,7 +108,7 @@ async function loadOrRefreshToken(): Promise<string> {
       },
     );
     data = response.data;
-  } catch (err: any) {
+  } catch (err) {
     // Another process sharing the database (e.g. local dev and production)
     // may have spent this refresh token between our read and our request.
     const latest = await loadPinterestTokens().catch(() => null);
@@ -118,17 +127,21 @@ async function loadOrRefreshToken(): Promise<string> {
 
     console.error(
       "[pinterest-auth] token refresh failed:",
-      err.response?.status,
-      err.response?.data ?? err.message,
+      ...(axios.isAxiosError(err)
+        ? [err.response?.status, err.response?.data ?? err.message]
+        : [err]),
     );
     throw err;
   }
 
-  // Pinterest returns expires_in (seconds)
+  if (!data.access_token) {
+    throw new Error("Pinterest token refresh returned no access_token");
+  }
+
   const newExpiresAt = now + data.expires_in * 1000;
   // Pinterest rotates the refresh token on every refresh; keep the old one
   // only if a response ever omits it.
-  const newRefreshToken: string = data.refresh_token ?? refreshToken;
+  const newRefreshToken = data.refresh_token ?? refreshToken;
   const refreshTokenExpiresAt =
     data.refresh_token_expires_in != null
       ? now + data.refresh_token_expires_in * 1000
@@ -136,7 +149,8 @@ async function loadOrRefreshToken(): Promise<string> {
         ? data.refresh_token_expires_at * 1000
         : (current?.refreshTokenExpiresAt ?? null);
 
-  cachedToken = data.access_token;
+  const accessToken = data.access_token;
+  cachedToken = accessToken;
   expiresAt = newExpiresAt;
 
   try {
@@ -144,7 +158,7 @@ async function loadOrRefreshToken(): Promise<string> {
       {
         refreshToken: newRefreshToken,
         refreshTokenExpiresAt,
-        accessToken: cachedToken,
+        accessToken,
         accessTokenExpiresAt: newExpiresAt,
         seedHash,
       },
@@ -169,5 +183,5 @@ async function loadOrRefreshToken(): Promise<string> {
         : ")"),
   );
 
-  return cachedToken ?? "";
+  return accessToken;
 }

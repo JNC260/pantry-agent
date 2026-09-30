@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button, Card, Modal, SelectField, TextField } from "@/components/ui";
 import { AppHeader } from "@/components/AppHeader";
 import { AppleCoreIcon, CitrusIcon } from "@/components/graphics";
@@ -15,6 +14,7 @@ import {
   updatePantryItem,
   deletePantryItem,
 } from "@/lib/pantry-api";
+import { useRequireAuth } from "@/lib/use-require-auth";
 
 type Draft = {
   ingredient: string;
@@ -258,7 +258,7 @@ function SortHeader({
 }
 
 export default function PantryPage() {
-  const router = useRouter();
+  useRequireAuth();
 
   const [items, setItems] = useState<PantryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -298,12 +298,6 @@ export default function PantryPage() {
     id: string;
     message: string;
   } | null>(null);
-
-  useEffect(() => {
-    if (!localStorage.getItem("token")) {
-      router.push("/login");
-    }
-  }, [router]);
 
   useEffect(() => {
     let cancelled = false;

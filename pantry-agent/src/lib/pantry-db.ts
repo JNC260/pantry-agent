@@ -5,6 +5,7 @@ const pantryDb = createClient({
   authToken: process.env.PANTRY_DB_AUTH_TOKEN,
 });
 
+// Must match OWNER_ID in api/src/auth/owner.ts, which owns this table.
 const OWNER_ID = "owner";
 
 export type PantryItem = {
