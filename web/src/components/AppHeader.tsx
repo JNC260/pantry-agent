@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Masthead } from "@/components/Masthead";
+import { useChat } from "@/lib/chat-context";
 
 const navLinks = [
   { href: "/chat", label: "Chat" },
@@ -15,8 +16,14 @@ const linkBase =
 export function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
+  const { sending, unread, clear } = useChat();
+
+  // Only needed off the chat page, which shows its own loading state.
+  const chatStatus =
+    pathname === "/chat" ? null : sending ? "reply loading" : unread ? "new reply" : null;
 
   function handleLogout() {
+    clear();
     localStorage.removeItem("token");
     router.push("/login");
   }
@@ -36,6 +43,16 @@ export function AppHeader() {
             }
           >
             {link.label}
+            {link.href === "/chat" && chatStatus && (
+              <span
+                title={chatStatus === "new reply" ? "New reply" : "Reply loading"}
+                className={`ml-1.5 inline-block size-2 rounded-full bg-mulberry align-middle ${
+                  chatStatus === "reply loading" ? "animate-pulse" : ""
+                }`}
+              >
+                <span className="sr-only">({chatStatus})</span>
+              </span>
+            )}
           </Link>
         ))}
         <button

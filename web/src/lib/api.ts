@@ -1,3 +1,5 @@
+import { CHAT_HISTORY_KEY } from "@/lib/storage-keys";
+
 export async function authedFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem("token");
 
@@ -12,6 +14,7 @@ export async function authedFetch(path: string, options: RequestInit = {}) {
 
   if (res.status === 401) {
     localStorage.removeItem("token");
+    localStorage.removeItem(CHAT_HISTORY_KEY);
     window.location.href = "/login";
     throw new Error("Session expired");
   }
