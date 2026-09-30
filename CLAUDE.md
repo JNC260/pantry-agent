@@ -43,7 +43,7 @@ File names are kebab-case throughout (Nest's `name.kind.ts` convention in `api/`
 
 ### `web` internals
 
-- App Router pages: `src/app/page.tsx` (landing), `login/`, `chat/`, `pantry/`. The pantry page's pieces live in route-private `_components/` and `_lib/`.
+- App Router pages: `src/app/page.tsx` (landing), `login/`, `chat/`, `pantry/`, and `privacy/`, which renders the repo root's `privacy.md` (the only copy; Pinterest requires the policy) at build time. The pantry page's pieces live in route-private `_components/` and `_lib/`.
 - `src/lib/api.ts` — `authedFetch` attaches the JWT from `localStorage` and redirects to `/login` on a 401; `fetchJson` also throws `ApiError` on any non-2xx.
 - `src/lib/freshness.ts` — expiry date parsing (local dates) and the expired/use-soon rules; the 3-day window matches `pantry-agent/src/lib/grocery-prompt.ts`.
 - `src/lib/use-require-auth.ts`, `storage-keys.ts`, `chat-context.tsx` (conversation state in the root layout).

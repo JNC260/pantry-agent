@@ -64,6 +64,14 @@ export default function LandingPage() {
 
       <footer className="px-4 pb-8 sm:px-6">
         <Torchon className="mx-auto max-w-5xl" />
+        <div className="mx-auto mt-4 max-w-5xl text-sm">
+          <Link
+            href="/privacy"
+            className="text-walnut underline decoration-rule underline-offset-[3px] hover:text-rosemary hover:decoration-current"
+          >
+            Privacy policy
+          </Link>
+        </div>
       </footer>
     </div>
   );

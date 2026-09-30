@@ -10,6 +10,7 @@ The Next.js frontend: public landing page, login, chat, and pantry management. S
 | `/login`  | —                          | Single-user login                                                                                       |
 | `/chat`   | JWT (client-side redirect) | Recipe recommendation chat                                                                              |
 | `/pantry` | JWT (client-side redirect) | Pantry inventory — view, search, filter, add (including bulk add via a modal), edit, delete, categorize |
+| `/privacy` | —                         | Privacy policy (required by Pinterest), rendered from the repo root's `privacy.md` at build time        |
 
 The JWT is stored in `localStorage`; every authenticated request goes through the shared `authedFetch` helper (`src/lib/api.ts`), which redirects to `/login` on a 401. Conversation history on `/chat` also persists to `localStorage`, so switching tabs or refreshing doesn't lose an in-progress conversation.
 

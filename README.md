@@ -10,7 +10,8 @@ actually in my pantry, including what's expired and what's running low.
 
 It's a personal, single-user project: it reads my own Pinterest account
 through Pinterest's API and isn't offered as a public service (see the
-[privacy policy](./privacy.md)).
+[privacy policy](./privacy.md), also at
+[pantrywhisperer.com/privacy](https://pantrywhisperer.com/privacy)).
 
 ![The pantry page: items with quantities and expiry dates, and a "Use these first" list of items expiring soon](docs/screenshots/pantry.jpg)
 
