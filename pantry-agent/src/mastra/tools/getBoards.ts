@@ -1,7 +1,6 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import axios from "axios";
-import { getValidPinterestToken } from "../../lib/pinterest-auth";
+import { pinterestGet } from "../../lib/pinterest-api";
 import {
   replaceCachedBoards,
   boardsAreFresh,
@@ -37,15 +36,9 @@ export const getBoardsTool = createTool({
       }
     }
 
-    const token = await getValidPinterestToken();
+    const data = await pinterestGet("/boards");
 
-    const response = await axios.get("https://api.pinterest.com/v5/boards", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    const boards = response.data.items.map((b: any) => ({
+    const boards = data.items.map((b: any) => ({
       id: b.id,
       name: b.name,
     }));

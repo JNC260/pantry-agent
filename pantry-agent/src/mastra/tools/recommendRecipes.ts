@@ -77,8 +77,10 @@ Select up to ${MAX_CANDIDATES_TO_EXTRACT} pin IDs that look like genuinely good 
       // selection agent genuinely found nothing promising). Only fetch
       // boards with zero cached pins — never re-fetch a board that's
       // already been checked.
+      // A board that fails to fetch is skipped rather than failing the whole
+      // recommendation; it's retried next time since it still has no pins.
       const allBoardIds = await getAllCachedBoardIds();
-      const fetchResults = await Promise.all(
+      const fetchResults = await Promise.allSettled(
         allBoardIds.map(async (boardId) => {
           const pins = await getCachedPins(boardId);
           if (pins.length === 0) {
@@ -88,7 +90,17 @@ Select up to ${MAX_CANDIDATES_TO_EXTRACT} pin IDs that look like genuinely good 
           return false;
         }),
       );
-      const fetchedAny = fetchResults.some(Boolean);
+      for (const [i, result] of fetchResults.entries()) {
+        if (result.status === "rejected") {
+          console.error(
+            `[recommend-recipes] skipping board ${allBoardIds[i]}:`,
+            result.reason,
+          );
+        }
+      }
+      const fetchedAny = fetchResults.some(
+        (r) => r.status === "fulfilled" && r.value,
+      );
 
       if (fetchedAny) {
         candidates = await selectCandidates();

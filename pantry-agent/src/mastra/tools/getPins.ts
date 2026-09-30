@@ -1,7 +1,6 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import axios from "axios";
-import { getValidPinterestToken } from "../../lib/pinterest-auth";
+import { pinterestGet } from "../../lib/pinterest-api";
 import {
   getCachedPins,
   pinsAreFresh,
@@ -38,18 +37,9 @@ export const getPinsFromBoardTool = createTool({
       if (pins.length > 0) return { pins };
     }
 
-    const token = await getValidPinterestToken();
+    const data = await pinterestGet(`/boards/${boardId}/pins`);
 
-    const response = await axios.get(
-      `https://api.pinterest.com/v5/boards/${boardId}/pins`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-
-    const pins = response.data.items.map((p: any) => ({
+    const pins = data.items.map((p: any) => ({
       id: p.id,
       title: p.title ?? null,
       sourceLink: p.link ?? null, // this is the URL back to the original recipe site

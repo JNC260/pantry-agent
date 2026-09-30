@@ -85,3 +85,14 @@ export async function savePinterestTokens(
   });
   return result.rowsAffected > 0;
 }
+
+// Only expires the stored access token if it's still the rejected one, so a
+// newer token saved by another process is left alone.
+export async function expireStoredAccessToken(accessToken: string) {
+  await ensureTable();
+  await client.execute({
+    sql: `UPDATE pinterest_oauth SET access_token_expires_at = 0
+          WHERE id = 1 AND access_token = ?`,
+    args: [accessToken],
+  });
+}

@@ -1,5 +1,6 @@
 import axios from "axios";
 import {
+  expireStoredAccessToken,
   hashToken,
   loadPinterestTokens,
   savePinterestTokens,
@@ -33,6 +34,20 @@ export async function getValidPinterestToken(): Promise<string> {
     inflight = null;
   });
   return inflight;
+}
+
+// Pinterest rejected this access token before its expiry (e.g. revoked by a
+// re-authorization), so the next call must refresh instead of reusing it.
+export async function invalidatePinterestToken(rejected: string) {
+  if (cachedToken === rejected) {
+    cachedToken = null;
+    expiresAt = 0;
+  }
+  try {
+    await expireStoredAccessToken(rejected);
+  } catch (err) {
+    console.error("[pinterest-auth] failed to expire stored access token:", err);
+  }
 }
 
 async function loadOrRefreshToken(): Promise<string> {
