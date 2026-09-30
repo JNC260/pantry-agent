@@ -46,7 +46,7 @@ export default function LandingPage() {
             <StillLife className="absolute left-0 top-0 w-[78%]" />
             <figure className="relative flex flex-col gap-2.5">
               <div className="aspect-video w-full overflow-hidden border border-rule bg-linen">
-                {/* Swap in your actual video embed once it's recorded (Part 9) */}
+                {/* TODO: replace YOUR_VIDEO_ID with the demo video once it's recorded */}
                 <iframe
                   className="h-full w-full"
                   src="https://www.youtube.com/embed/YOUR_VIDEO_ID"

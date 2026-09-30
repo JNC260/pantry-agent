@@ -20,14 +20,12 @@ import {
 } from "../lib/pinterest-health";
 
 export const mastra = new Mastra({
-  workflows: {},
   agents: {
     pantryAgent,
     recipeExtractionAgent,
     pinSelectionAgent,
     groceryMatchAgent,
   },
-  scorers: {},
   server: {
     apiRoutes: [
       registerApiRoute("/health/pinterest", {

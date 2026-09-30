@@ -15,6 +15,9 @@ export async function authedFetch(path: string, options: RequestInit = {}) {
   if (res.status === 401) {
     localStorage.removeItem("token");
     localStorage.removeItem(CHAT_HISTORY_KEY);
+    // A full page load rather than router.push: this runs outside React (no
+    // router here), and it drops any in-memory state from the old session.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = "/login";
     throw new Error("Session expired");
   }

@@ -26,7 +26,7 @@ export async function ensurePantryTable() {
     await pantryDb.execute(
       `ALTER TABLE pantry_items ADD COLUMN low_stock INTEGER NOT NULL DEFAULT 0`,
     );
-  } catch (err) {
+  } catch {
     // column already exists on every run after the first — expected, ignore
   }
 

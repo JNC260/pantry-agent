@@ -27,7 +27,6 @@ export const getBoardsTool = createTool({
   execute: async (inputData) => {
     const refresh = inputData?.refresh ?? false;
 
-    console.log("REFRESH", refresh);
     if (!refresh && (await boardsAreFresh())) {
       const boards = await getCachedBoards();
       if (boards.length > 0) return { boards };
@@ -48,7 +47,6 @@ export const getBoardsTool = createTool({
       id: b.id,
       name: b.name,
     }));
-    console.log("NEXT STEP IS REPLACE BOARDS");
     await replaceCachedBoards(boards);
     return { boards };
   },

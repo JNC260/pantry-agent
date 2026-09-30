@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { Row, Value } from '@libsql/client';
 import { randomUUID } from 'node:crypto';
 import { pantryDb, ensurePantryTable } from './pantry.db';
 import type { PantryCategory } from './categories';
@@ -127,16 +128,27 @@ export class PantryService {
   }
 }
 
-function rowToPantryItem(row: Record<string, unknown>): PantryItem {
+// libSQL returns loosely typed column values; narrow each to what the
+// schema stores.
+function asText(value: Value): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function asNumber(value: Value): number | null {
+  return typeof value === 'number' || typeof value === 'bigint'
+    ? Number(value)
+    : null;
+}
+
+function rowToPantryItem(row: Row): PantryItem {
   return {
-    id: String(row.id),
-    ingredient: String(row.ingredient),
-    quantity: row.quantity === null ? null : Number(row.quantity),
-    unit: row.unit === null ? null : String(row.unit),
-    expirationDate:
-      row.expiration_date === null ? null : String(row.expiration_date),
-    createdAt: Number(row.created_at),
+    id: asText(row.id) ?? '',
+    ingredient: asText(row.ingredient) ?? '',
+    quantity: asNumber(row.quantity),
+    unit: asText(row.unit),
+    expirationDate: asText(row.expiration_date),
+    createdAt: asNumber(row.created_at) ?? 0,
     lowStock: Boolean(row.low_stock),
-    category: String(row.category) as PantryCategory,
+    category: (asText(row.category) ?? 'other') as PantryCategory,
   };
 }

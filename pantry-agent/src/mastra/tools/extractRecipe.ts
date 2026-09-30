@@ -33,8 +33,6 @@ export const extractRecipeTool = createTool({
     const { url } = data;
     const { mastra } = context;
 
-    console.log("STEP 1: starting extract", url);
-
     const extractResult = await tavilyExtractTool.execute?.(
       { urls: [url], extractDepth: "advanced", format: "markdown" },
       context,
@@ -56,35 +54,16 @@ export const extractRecipeTool = createTool({
       throw new Error(`Tavily returned no content for ${url}`);
     }
 
-    console.log(
-      "STEP 2: extract done, content length",
-      pageContent.rawContent.length,
-    );
-
     if (!mastra) {
-      console.error("STEP 3 FAIL: mastra is undefined in tool context");
       throw new Error("mastra context not available in tool execution");
     }
 
-    let extractionAgent;
-    try {
-      extractionAgent = mastra.getAgent("recipeExtractionAgent");
-      console.log("STEP 3: agent found?", Boolean(extractionAgent));
-    } catch (err) {
-      console.error("STEP 3 FAIL: getAgent threw:", err);
-      throw err;
-    }
-
-    try {
-      const result = await extractionAgent.generate(
+    const result = await mastra
+      .getAgent("recipeExtractionAgent")
+      .generate(
         `Extract the recipe from this page content...\n\nCONTENT:\n${pageContent.rawContent.slice(0, 15000)}`,
         { structuredOutput: { schema: recipeSchema } },
       );
-      console.log("STEP 4: generate done");
-      return result.object;
-    } catch (err) {
-      console.error("STEP 4 FAIL", err);
-      throw err;
-    }
+    return result.object;
   },
 });

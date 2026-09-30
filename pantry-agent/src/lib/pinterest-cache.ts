@@ -9,8 +9,6 @@ const dbUrl =
   process.env.PINTEREST_CACHE_DB_URL ??
   `file:${process.env.PINTEREST_CACHE_DB_PATH ?? join(PROJECT_ROOT, "pinterest-cache.db")}`;
 
-console.log("PINTEREST CACHE DB PATH:", dbUrl);
-
 export const client = createClient({
   url: dbUrl,
   authToken: process.env.PINTEREST_CACHE_DB_AUTH_TOKEN,
@@ -20,7 +18,7 @@ const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 let initialized = false;
 
-export async function ensureTables() {
+async function ensureTables() {
   if (initialized) return;
 
   await client.batch(
@@ -81,7 +79,6 @@ export async function boardsAreFresh(maxAgeMs?: number) {
 export async function replaceCachedBoards(
   boards: { id: string; name: string }[],
 ) {
-  console.log("WRITING BOARDS TO CACHE:", boards.length, dbUrl);
   await ensureTables();
   await client.batch(
     [
@@ -131,18 +128,14 @@ export async function replaceCachedPins(
   await markFetched(`pins:${boardId}`);
 }
 
-// Used by the search tool in Session 9 to search across every cached board
-export async function getAllCachedBoardIds(): Promise<string[]> {
-  const boards = await getCachedBoards();
-  return boards.map((b) => b.id);
-}
-
 export async function searchCachedPins(query: string, boardId?: string) {
   await ensureTables();
 
   const lowerQuery = query.toLowerCase();
 
-  const boardIds = boardId ? [boardId] : await getAllCachedBoardIds();
+  const boardIds = boardId
+    ? [boardId]
+    : (await getCachedBoards()).map((b) => b.id);
 
   const matches: {
     id: string;
@@ -162,7 +155,8 @@ export async function searchCachedPins(query: string, boardId?: string) {
 
   return matches;
 }
-export async function getBoardNameMap(): Promise<Record<string, string>> {
+
+async function getBoardNameMap(): Promise<Record<string, string>> {
   const boards = await getCachedBoards();
   const map: Record<string, string> = {};
   for (const b of boards) {
