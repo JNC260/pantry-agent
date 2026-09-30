@@ -8,6 +8,7 @@ import {
   getCachedPins,
   getAllCachedBoardIds,
   getAllCachedPinsLightweight,
+  type LightweightPin,
 } from "../../lib/pinterest-cache";
 import { pinSelectionAgent } from "../agents/pin-selection-agent";
 
@@ -16,7 +17,61 @@ const selectionSchema = z.object({
 });
 
 const MAX_CANDIDATES_TO_EXTRACT = 5;
+
+// Only pins that could become a recommendation: they need a link, and a
+// recipe saved to several boards is listed once. Sorted so the prompt built
+// from them is byte-identical between requests (needed for prompt caching).
+function selectablePins(pins: LightweightPin[]) {
+  const sorted = pins
+    .filter((p): p is LightweightPin & { sourceLink: string } => !!p.sourceLink)
+    .sort(
+      (a, b) =>
+        a.boardName.localeCompare(b.boardName) || a.id.localeCompare(b.id),
+    );
+  const seen = new Set<string>();
+  return sorted.filter((p) => {
+    if (seen.has(p.sourceLink)) return false;
+    seen.add(p.sourceLink);
+    return true;
+  });
+}
+
 const MAX_RECOMMENDATIONS = 3;
+
+// Asks the selection agent which cached pins best fit the request.
+export async function selectCandidates(ingredients: string[]) {
+  const allPins = selectablePins(await getAllCachedPinsLightweight());
+  if (allPins.length === 0) return [];
+
+  const pinList = `Here are the user's saved pins (id | title | board name):
+${allPins.map((p) => `${p.id} | ${p.title ?? "(untitled)"} | ${p.boardName}`).join("\n")}`;
+
+  const selection = await pinSelectionAgent.generate(
+    [
+      // The pin list only changes when the cache does, so it goes first
+      // and is marked for prompt caching; the per-request part follows.
+      {
+        role: "user",
+        content: pinList,
+        providerOptions: {
+          anthropic: { cacheControl: { type: "ephemeral" } },
+        },
+      },
+      {
+        role: "user",
+        content: `The user has these ingredients/preferences: ${ingredients.join(", ")}.
+
+Select up to ${MAX_CANDIDATES_TO_EXTRACT} pin IDs that look like genuinely good candidates, ordered from best to worst fit.`,
+      },
+    ],
+    { structuredOutput: { schema: selectionSchema } },
+  );
+
+  // preserve the agent's own ordering, not the cache's arbitrary order
+  return selection.object.selectedPinIds
+    .map((id) => allPins.find((p) => p.id === id))
+    .filter((p): p is NonNullable<typeof p> => !!p);
+}
 
 export const recommendRecipesTool = createTool({
   id: "recommend-recipes",
@@ -48,29 +103,7 @@ export const recommendRecipesTool = createTool({
       await getBoardsTool.execute?.({}, context);
     }
 
-    async function selectCandidates() {
-      const allPins = await getAllCachedPinsLightweight();
-      if (allPins.length === 0) return [];
-
-      const selectionPrompt = `The user has these ingredients/preferences: ${ingredients.join(", ")}.
-
-Here are their saved pins (id | title | board name):
-${allPins.map((p) => `${p.id} | ${p.title ?? "(untitled)"} | ${p.boardName}`).join("\n")}
-
-Select up to ${MAX_CANDIDATES_TO_EXTRACT} pin IDs that look like genuinely good candidates, ordered from best to worst fit.`;
-
-      const selection = await pinSelectionAgent.generate(selectionPrompt, {
-        structuredOutput: { schema: selectionSchema },
-      });
-
-      const selectedIds = new Set(selection.object.selectedPinIds);
-      // preserve the agent's own ordering, not the cache's arbitrary order
-      return selection.object.selectedPinIds
-        .map((id) => allPins.find((p) => p.id === id))
-        .filter((p): p is NonNullable<typeof p> => !!p && !!p.sourceLink);
-    }
-
-    let candidates = await selectCandidates();
+    let candidates = await selectCandidates(ingredients);
 
     if (candidates.length === 0) {
       // Boards might exist but their pins were never fetched (or the
@@ -103,7 +136,7 @@ Select up to ${MAX_CANDIDATES_TO_EXTRACT} pin IDs that look like genuinely good 
       );
 
       if (fetchedAny) {
-        candidates = await selectCandidates();
+        candidates = await selectCandidates(ingredients);
       }
     }
 

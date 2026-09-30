@@ -21,5 +21,5 @@ export const pinSelectionAgent = new Agent({
       picking weak options just to fill space — a later step will verify
       your picks against the real recipe, so it's fine (and better) to be
       selective here.`,
-  model: "anthropic/claude-sonnet-4-6",
+  model: "anthropic/claude-haiku-4-5",
 });
