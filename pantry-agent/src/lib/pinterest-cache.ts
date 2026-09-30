@@ -1,3 +1,12 @@
+/**
+ * libSQL cache of the user's Pinterest boards and pins.
+ *
+ * Tables: boards_cache, pins_cache (keyed to a board), and cache_meta, which
+ * records when each list was last fetched ("boards", "pins:<boardId>") for
+ * the one-week freshness check. Uses PINTEREST_CACHE_DB_URL (Turso in
+ * production) or a local SQLite file. The Pinterest OAuth token store
+ * shares this database; see pinterest-token-store.ts.
+ */
 import { createClient } from "@libsql/client";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";

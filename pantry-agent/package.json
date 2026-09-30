@@ -1,18 +1,16 @@
 {
   "name": "pantry-agent",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Mastra agent server: Pinterest access, recipe extraction, recommendations, and grocery lists.",
   "scripts": {
     "test": "vitest run",
     "dev": "mastra dev",
     "build": "mastra build",
     "start": "mastra start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "auth:pinterest": "tsx src/lib/pinterest-auth-flow.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=22.13.0"
@@ -34,6 +32,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mastra": "^1.18.2",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   }

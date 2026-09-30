@@ -14,6 +14,7 @@ import { PantryService } from './pantry.service';
 import { CreatePantryItemDto } from './dto/create-pantry-item.dto';
 import { UpdatePantryItemDto } from './dto/update-pantry-item.dto';
 
+/** /pantry CRUD routes (all require a JWT). */
 @Controller('pantry')
 @UseGuards(JwtAuthGuard)
 export class PantryController {

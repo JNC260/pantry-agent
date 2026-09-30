@@ -29,6 +29,11 @@ const UPDATABLE_COLUMNS: Record<keyof UpdatePantryItemDto, string> = {
   category: 'category',
 };
 
+/**
+ * CRUD for the owner's pantry items in libSQL. Methods return null (or
+ * false) when an item doesn't exist, and the controller turns that into a
+ * 404.
+ */
 @Injectable()
 export class PantryService {
   async list(): Promise<PantryItem[]> {

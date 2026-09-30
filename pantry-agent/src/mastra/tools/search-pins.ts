@@ -2,6 +2,10 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { searchCachedPins } from "../../lib/pinterest-cache";
 
+/**
+ * Keyword search over cached pin titles, across every board or just one.
+ * Never calls Pinterest, so it only sees what the cache already holds.
+ */
 export const searchPinsTool = createTool({
   id: "search-pins",
   description:

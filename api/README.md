@@ -12,35 +12,26 @@ The NestJS backend: authentication and pantry CRUD, and the only thing allowed t
 | `POST /pantry`       | JWT  | Create a pantry item                                                                     |
 | `PATCH /pantry/:id`  | JWT  | Update a pantry item                                                                     |
 | `DELETE /pantry/:id` | JWT  | Delete a pantry item                                                                     |
+| `GET /health`        | —    | Liveness check for the deploy platform                                                   |
 
-There's no user table — this is single-user by design (see the root README for why). `JwtAuthGuard` protects every route above except login.
+There's no user table — this is single-user by design (see the root README for why). `JwtAuthGuard` protects every route above except login and health. Login is rate-limited to 5 attempts per minute per IP.
 
 ## Running it
 
 ```bash
-npm install
 npm run start:dev   # watch mode, localhost:3000
 npm run build
 npm run start:prod
+npm test            # unit tests
+npm run test:e2e    # e2e tests against an in-memory database
+npm run typecheck
 ```
 
-Both `pantry-agent/` (`npm run dev`) and this need to be running for `/chat` to work locally.
+Both `pantry-agent/` (`npm run dev`) and this need to be running for `/chat`
+to work locally.
 
 ## Environment variables
 
-```
-PORT=3000                          # defaults to 3000 if unset; hosting
-                                    # platforms typically inject this
-WEB_ORIGIN=http://localhost:3001   # CORS allow-list, the frontend's origin
-
-JWT_SECRET=
-AUTH_PASSWORD=                     # despite the name, this must be a
-                                    # bcrypt HASH, not a plaintext password
-                                    # — generate with bcrypt, compared via
-                                    # bcrypt.compare() in auth.controller.ts
-
-MASTRA_SERVER_URL=http://localhost:4111   # where the Mastra app is running
-
-PANTRY_DB_URL=
-PANTRY_DB_AUTH_TOKEN=
-```
+See [`.env.example`](./.env.example). The api refuses to start without
+`AUTH_PASSWORD_HASH` (a bcrypt hash of the login password, not the password
+itself), `JWT_SECRET`, and `PANTRY_DB_URL`.

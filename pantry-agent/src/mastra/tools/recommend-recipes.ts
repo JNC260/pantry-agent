@@ -1,8 +1,8 @@
 import { createTool, isValidationError } from "@mastra/core/tools";
 import { z } from "zod";
-import { extractRecipeTool } from "./extractRecipe";
-import { getBoardsTool } from "./getBoards";
-import { getPinsFromBoardTool } from "./getPins";
+import { extractRecipeTool } from "./extract-recipe";
+import { getBoardsTool } from "./get-boards";
+import { getPinsFromBoardTool } from "./get-pins-from-board";
 import {
   getCachedBoards,
   getCachedPins,
@@ -23,7 +23,10 @@ const MAX_CANDIDATES_TO_EXTRACT = 5;
 
 const MAX_RECOMMENDATIONS = 3;
 
-// Asks the selection agent which cached pins best fit the request.
+/**
+ * Asks the selection agent which cached recipe pins best fit the request,
+ * judging from titles and board names only. Returns them best first.
+ */
 export async function selectCandidates(ingredients: string[]) {
   const allPins = selectablePins(await getAllCachedPinsLightweight());
   if (allPins.length === 0) return [];
@@ -59,6 +62,20 @@ Select up to ${MAX_CANDIDATES_TO_EXTRACT} pin IDs that look like genuinely good 
     .filter((p): p is NonNullable<typeof p> => !!p);
 }
 
+/**
+ * Recommends up to 3 recipes from the user's own pins for what they have on
+ * hand or feel like eating.
+ *
+ * 1. On a cold start, seeds the boards cache.
+ * 2. Has the pin-selection agent shortlist up to 5 recipe pins by title.
+ * 3. If nothing fits, fetches recipe boards whose pins were never cached
+ *    (never re-fetching a board already checked) and asks again.
+ * 4. Extracts each shortlisted recipe in parallel to get its real
+ *    ingredient list; a pin that fails to extract is still offered by link.
+ *
+ * Returns an empty list rather than a weak guess, which tells the agent to
+ * fall back to web search.
+ */
 export const recommendRecipesTool = createTool({
   id: "recommend-recipes",
   description:

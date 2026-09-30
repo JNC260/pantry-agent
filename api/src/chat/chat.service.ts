@@ -32,6 +32,11 @@ function replyText(result: AgentGenerateResponse): string {
   return parts.length > 0 ? parts.join('\n\n') : result.text;
 }
 
+/**
+ * Relays a conversation to the Mastra agent server and returns the reply.
+ * Holds no agent logic itself; the web app sends the whole conversation on
+ * each request, so no history is stored here.
+ */
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);

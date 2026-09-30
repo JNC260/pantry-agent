@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui";
-import { Masthead } from "@/components/Masthead";
+import { Masthead } from "@/components/masthead";
 import { StillLife, Torchon } from "@/components/graphics";
 
 export default function LandingPage() {

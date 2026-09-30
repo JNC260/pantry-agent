@@ -1,12 +1,18 @@
 import { Agent } from "@mastra/core/agent";
-import { getPinsFromBoardTool } from "../tools/getPins";
-import { getBoardsTool } from "../tools/getBoards";
-import { extractRecipeTool } from "../tools/extractRecipe";
-import { searchPinsTool } from "../tools/searchPins";
-import { webSearchTool } from "../tools/webSearchTool";
-import { recommendRecipesTool } from "../tools/recommendRecipes";
-import { generateGroceryListTool } from "../tools/generateGroceryList";
+import { getPinsFromBoardTool } from "../tools/get-pins-from-board";
+import { getBoardsTool } from "../tools/get-boards";
+import { extractRecipeTool } from "../tools/extract-recipe";
+import { searchPinsTool } from "../tools/search-pins";
+import { webSearchTool } from "../tools/web-search";
+import { recommendRecipesTool } from "../tools/recommend-recipes";
+import { generateGroceryListTool } from "../tools/generate-grocery-list";
 
+/**
+ * The agent users chat with. Its instructions encode the tool-call protocol
+ * (resolve board names before fetching pins, copy URLs verbatim, always use
+ * generate-grocery-list for grocery lists), so tool output shapes must match
+ * what they describe.
+ */
 export const pantryAgent = new Agent({
   id: "pantry-agent",
   name: "Pantry Agent",

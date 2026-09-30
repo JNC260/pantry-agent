@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 
+/** Matches a recipe's ingredients against the pantry for generate-grocery-list. */
 export const groceryMatchAgent = new Agent({
   id: "grocery-match-agent",
   name: "Grocery Match Agent",

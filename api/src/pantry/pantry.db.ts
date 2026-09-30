@@ -1,3 +1,8 @@
+/**
+ * The pantry database: the libSQL client, and the pantry_items table's
+ * schema and migrations. pantry-agent reads this table directly for grocery
+ * lists (pantry-agent/src/lib/pantry-db.ts), so schema changes affect it too.
+ */
 import { createClient } from '@libsql/client';
 
 export const pantryDb = createClient({

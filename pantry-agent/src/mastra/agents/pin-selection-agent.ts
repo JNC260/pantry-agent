@@ -1,5 +1,9 @@
 import { Agent } from "@mastra/core/agent";
 
+/**
+ * Shortlists pins for recommend-recipes from titles and board names alone.
+ * A small, fast model, since every pick is verified by extraction afterwards.
+ */
 export const pinSelectionAgent = new Agent({
   id: "pin-selection-agent",
   name: "Pin Selection Agent",

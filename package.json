@@ -1,6 +1,7 @@
 {
   "name": "pantry-agent-repo",
   "private": true,
+  "description": "Recipe recommendations from your own Pinterest boards, checked against what is in your pantry.",
   "workspaces": [
     "pantry-agent",
     "api",
@@ -9,5 +10,6 @@
   "scripts": {
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces --if-present && npm run test:e2e -w api"
-  }
+  },
+  "license": "MIT"
 }

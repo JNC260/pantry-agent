@@ -7,6 +7,14 @@ import {
   replaceCachedPins,
 } from "../../lib/pinterest-cache";
 
+/**
+ * Lists one board's pins, each with its title and the link back to the
+ * recipe site.
+ *
+ * Takes a board *id*; the agent's instructions have it resolve names through
+ * get-boards first. Caching works like get-boards: fresh cache first, then
+ * Pinterest, then stale cache if Pinterest is down.
+ */
 export const getPinsFromBoardTool = createTool({
   id: "get-pins-from-board",
   description:

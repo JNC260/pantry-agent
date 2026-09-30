@@ -25,6 +25,15 @@ const tavilyExtractTool = createTavilyExtractTool();
 // and steps land well within this, and it keeps the extraction prompt small.
 const MAX_PAGE_CHARS = 15_000;
 
+/**
+ * Turns a recipe page into structured data: title, ingredients with
+ * quantities, steps, cuisine, main protein, and total time.
+ *
+ * Tavily fetches the page as markdown, then the tool-less
+ * recipeExtractionAgent pulls the recipe out of it with a typed schema.
+ * Used directly by the agent, and by recommend-recipes and
+ * generate-grocery-list to check real ingredient lists.
+ */
 export const extractRecipeTool = createTool({
   id: "extract-recipe",
   description:

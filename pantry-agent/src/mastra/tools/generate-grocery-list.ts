@@ -1,6 +1,6 @@
 import { createTool, isValidationError } from "@mastra/core/tools";
 import { z } from "zod";
-import { extractRecipeTool } from "./extractRecipe";
+import { extractRecipeTool } from "./extract-recipe";
 import { getPantryItems } from "../../lib/pantry-db";
 import { formatPantryLine, formatRecipeLine } from "../../lib/grocery-prompt";
 import { groceryMatchAgent } from "../agents/grocery-match-agent";
@@ -28,6 +28,16 @@ const groceryListSchema = z.object({
     ),
 });
 
+/**
+ * Compares a chosen recipe against the pantry and sorts its ingredients into
+ * have enough / might need more / need to buy.
+ *
+ * Extracts the recipe, reads the pantry straight from the api's database,
+ * and labels each pantry item with its stock and expiry status (see
+ * grocery-prompt.ts). The groceryMatchAgent then does the matching, which
+ * needs judgment ("chicken stock" covers "chicken broth") that exact text
+ * matching can't provide.
+ */
 export const generateGroceryListTool = createTool({
   id: "generate-grocery-list",
   description:

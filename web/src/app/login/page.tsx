@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, TextField } from "@/components/ui";
-import { Wordmark } from "@/components/Masthead";
+import { Wordmark } from "@/components/masthead";
 import { PanelStillLife } from "@/components/graphics";
 import { TOKEN_KEY } from "@/lib/storage-keys";
 

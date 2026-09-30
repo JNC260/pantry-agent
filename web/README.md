@@ -16,18 +16,21 @@ The JWT is stored in `localStorage`; every authenticated request goes through th
 ## Running it
 
 ```bash
-npm install
-npm run dev     # localhost:3001
+npm run dev        # localhost:3001
 npm run build
 npm run start
+npm test           # Vitest unit tests
+npm run typecheck  # generates Next's route types, then runs tsc
 ```
 
-`api/` (and, for `/chat`, `pantry-agent/` behind it) needs to be running for anything past the landing page to actually work.
+`api/` (and, for `/chat`, `pantry-agent/` behind it) needs to be running for
+anything past the landing page to actually work.
+
+The pantry page is split into route-private pieces: `src/app/pantry/_components`
+for the UI and `_lib` for the sorting, filtering, and form logic (tested in
+`*.test.ts` alongside).
 
 ## Environment variables
 
-```
-NEXT_PUBLIC_API_URL=http://localhost:3000
-```
-
-That's the only one — this app never talks to Pinterest, Turso, or Mastra directly, only to `api/`.
+See [`.env.example`](./.env.example). `NEXT_PUBLIC_API_URL` is the only one;
+this app never talks to Pinterest, Turso, or Mastra directly, only to `api/`.

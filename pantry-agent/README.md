@@ -24,36 +24,29 @@ The Mastra application: the agent, its tools, and a few small single-purpose sub
 ## Running it
 
 ```bash
-npm install
-npm run dev    # Studio + local API at localhost:4111
-npm run build  # production build → .mastra/output
-npm run start  # run the production build
+npm run dev             # agent server + Mastra Studio at localhost:4111
+npm run build           # production build -> .mastra/output
+npm run start           # run the production build
+npm test                # Vitest unit tests
+npm run typecheck
+npm run auth:pinterest  # one-time Pinterest OAuth; saves a refresh token to .env
 ```
+
+Pure logic lives in `src/lib` next to its tests (`*.test.ts`): Pinterest
+requests and token refresh, the recipe-board list, and the grocery prompt.
+Tools in `src/mastra/tools` wire that logic to Mastra and the agents.
 
 ## Environment variables
 
-```
-ANTHROPIC_API_KEY=
-TAVILY_API_KEY=
+See [`.env.example`](./.env.example) for every variable and what it's for.
+Missing ones are listed in the log at startup. Two things worth knowing:
 
-# Pinterest (the running app only needs the refresh token; client
-# id/secret/redirect URI are only needed once, to generate it — see
-# src/lib/pinterest-auth-flow.ts)
-PINTEREST_REFRESH_TOKEN=
+- Pinterest's client ID and secret are needed on **every** token refresh, not
+  just when generating the refresh token.
+- Pinterest rotates the refresh token on each use, so after the first run the
+  current one lives in the cache database (`pinterest_oauth` table), not in
+  `.env`. Changing `PINTEREST_REFRESH_TOKEN` (e.g. after re-running
+  `auth:pinterest`) starts a fresh chain.
 
-# Turso — Pinterest cache. Unset both and it falls back to a local
-# file (pinterest-cache.db) for dev.
-PINTEREST_CACHE_DB_URL=
-PINTEREST_CACHE_DB_AUTH_TOKEN=
-
-# Turso — pantry data (read-only from this side; api/ owns writes)
-PANTRY_DB_URL=
-PANTRY_DB_AUTH_TOKEN=
-
-# Turso — Mastra's own internal storage (observability, etc.).
-# Unset and it falls back to a local file (mastra.db).
-MASTRA_DB_URL=
-MASTRA_DB_AUTH_TOKEN=
-```
-
-In production this server is never exposed publicly — `api/` reaches it over an internal `localhost` connection inside the same container. See the root README for why.
+In production this server is never exposed publicly: `api/` reaches it over
+`localhost` inside the same container. See the root README for why.

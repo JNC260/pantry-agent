@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button, TextField } from "@/components/ui";
-import { AppHeader } from "@/components/AppHeader";
+import { AppHeader } from "@/components/app-header";
 import { NestedArcs } from "@/components/graphics";
 import { useChat } from "@/lib/chat-context";
 import { useRequireAuth } from "@/lib/use-require-auth";

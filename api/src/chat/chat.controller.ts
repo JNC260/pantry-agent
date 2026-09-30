@@ -3,6 +3,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ChatService } from './chat.service';
 import { ChatRequestDto } from './dto/chat-request.dto';
 
+/** POST /chat: sends the conversation to the agent (requires a JWT). */
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
 export class ChatController {

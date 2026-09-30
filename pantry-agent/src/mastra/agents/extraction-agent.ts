@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 
+/** Pulls structured recipe data out of page content for extract-recipe. */
 export const recipeExtractionAgent = new Agent({
   id: "recipe-extraction-agent",
   name: "Recipe Extraction Agent",

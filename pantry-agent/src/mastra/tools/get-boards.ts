@@ -7,6 +7,13 @@ import {
   getCachedBoards,
 } from "../../lib/pinterest-cache";
 
+/**
+ * Lists the user's Pinterest boards (id and name).
+ *
+ * Serves the cache while it's under a week old; otherwise refetches every
+ * page from Pinterest and replaces the cache. If Pinterest is unreachable,
+ * stale cached boards are returned rather than an error.
+ */
 export const getBoardsTool = createTool({
   id: "get-boards",
   description: "Lists the boards on the user's own Pinterest account",

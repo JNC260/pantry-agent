@@ -34,7 +34,7 @@ async function runCheck() {
   } else {
     console.error(
       `[pinterest-health] Pinterest connection is BROKEN: ${health.error}. ` +
-        "If refreshing keeps failing, re-run src/lib/pinterest-auth-flow.ts and update PINTEREST_REFRESH_TOKEN.",
+        "If refreshing keeps failing, run `npm run auth:pinterest -w pantry-agent` and update PINTEREST_REFRESH_TOKEN.",
     );
   }
 }

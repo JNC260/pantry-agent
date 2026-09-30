@@ -7,6 +7,10 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 
+/**
+ * Requires a valid `Authorization: Bearer <jwt>` header, signed with
+ * JWT_SECRET and not expired. There's one user, so no user lookup follows.
+ */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(private jwtService: JwtService) {}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button, Card } from "@/components/ui";
-import { AppHeader } from "@/components/AppHeader";
+import { AppHeader } from "@/components/app-header";
 import {
   PANTRY_CATEGORIES,
   listPantryItems,

@@ -1,6 +1,7 @@
 {
   "name": "web",
   "version": "0.1.0",
+  "description": "Next.js frontend: landing page, login, chat, and pantry management.",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 3001",
@@ -27,5 +28,6 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.3"
-  }
+  },
+  "license": "MIT"
 }

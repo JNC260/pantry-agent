@@ -1,3 +1,10 @@
+/**
+ * Read-only access to the pantry, for grocery lists.
+ *
+ * The api owns the pantry_items table (schema and migrations in
+ * api/src/pantry/pantry.db.ts); this reads the same database directly
+ * instead of calling the api, so it must follow that schema.
+ */
 import { createClient, type Client } from "@libsql/client";
 
 // Created on first use rather than at import, so a missing PANTRY_DB_URL
