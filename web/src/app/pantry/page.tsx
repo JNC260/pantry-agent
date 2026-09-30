@@ -420,23 +420,21 @@ export default function PantryPage() {
     const updates: Parameters<typeof updatePantryItem>[1] = {};
     if (ingredient !== item.ingredient) updates.ingredient = ingredient;
 
+    // A field emptied in the form is sent as null, which clears it.
     const quantityTrimmed = editDraft.quantity.trim();
     const currentQuantity = item.quantity !== null ? String(item.quantity) : "";
-    if (quantityTrimmed && quantityTrimmed !== currentQuantity) {
-      updates.quantity = Number(quantityTrimmed);
+    if (quantityTrimmed !== currentQuantity) {
+      updates.quantity = quantityTrimmed ? Number(quantityTrimmed) : null;
     }
 
     const unitTrimmed = editDraft.unit.trim();
-    if (unitTrimmed && unitTrimmed !== (item.unit ?? "")) {
-      updates.unit = unitTrimmed;
+    if (unitTrimmed !== (item.unit ?? "")) {
+      updates.unit = unitTrimmed || null;
     }
 
     const expirationTrimmed = editDraft.expirationDate.trim();
-    if (
-      expirationTrimmed &&
-      expirationTrimmed !== (item.expirationDate ?? "")
-    ) {
-      updates.expirationDate = expirationTrimmed;
+    if (expirationTrimmed !== (item.expirationDate ?? "")) {
+      updates.expirationDate = expirationTrimmed || null;
     }
 
     if (editDraft.category !== item.category) {
@@ -497,8 +495,6 @@ export default function PantryPage() {
     setFlagError(null);
     try {
       const updated = await updatePantryItem(item.id, { lowStock });
-      // authedFetch doesn't throw on 4xx/5xx, so an error body lands here.
-      if (updated?.id !== item.id) throw new Error("Update failed");
       replace(updated);
     } catch {
       replace(item);

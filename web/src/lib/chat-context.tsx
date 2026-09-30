@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { authedFetch } from "@/lib/api";
+import { fetchJson } from "@/lib/api";
 import { CHAT_HISTORY_KEY } from "@/lib/storage-keys";
 
 export type Message = { role: "user" | "assistant"; content: string };
@@ -82,12 +82,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     requestRef.current = controller;
 
     try {
-      const res = await authedFetch("/chat", {
+      const { reply } = await fetchJson<{ reply: string }>("/chat", {
         method: "POST",
         body: JSON.stringify({ messages: history }),
         signal: controller.signal,
       });
-      const { reply } = await res.json();
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       setUnread(true);
     } catch {

@@ -31,12 +31,18 @@ type Freshness = "expired" | "soon" | "fresh" | "none";
 
 function classifyFreshness(expirationDate: string | null): Freshness {
   if (!expirationDate) return "none";
-  const expiry = new Date(expirationDate);
-  if (isNaN(expiry.getTime())) return "none";
+  // Stored as "YYYY-MM-DD". Build a local date: `new Date("YYYY-MM-DD")`
+  // parses as UTC midnight, which is the previous day west of UTC.
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(expirationDate);
+  if (!match) return "none";
+  const expiry = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+  );
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  expiry.setHours(0, 0, 0, 0);
 
   const daysUntil = Math.round(
     (expiry.getTime() - today.getTime()) / 86_400_000,

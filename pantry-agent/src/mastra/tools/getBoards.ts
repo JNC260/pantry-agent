@@ -30,10 +30,7 @@ export const getBoardsTool = createTool({
     console.log("REFRESH", refresh);
     if (!refresh && (await boardsAreFresh())) {
       const boards = await getCachedBoards();
-      if (boards.length > 0) {
-        await replaceCachedBoards(boards);
-        return { boards };
-      }
+      if (boards.length > 0) return { boards };
     }
 
     let items;

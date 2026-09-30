@@ -130,7 +130,11 @@ export const recommendRecipesTool = createTool({
         title: z.string(),
         sourceLink: z.string(),
         boardName: z.string(),
-        matchedOnHandIngredients: z.array(z.string()),
+        ingredients: z
+          .array(z.string())
+          .describe(
+            "Every ingredient the recipe calls for; empty if the page couldn't be extracted",
+          ),
       }),
     ),
   }),
@@ -193,7 +197,7 @@ export const recommendRecipesTool = createTool({
       title: string;
       sourceLink: string;
       boardName: string;
-      matchedOnHandIngredients: string[];
+      ingredients: string[];
     };
 
     const results = await Promise.all(
@@ -211,9 +215,7 @@ export const recommendRecipesTool = createTool({
               title: extracted.title,
               sourceLink: candidate.sourceLink,
               boardName: candidate.boardName,
-              matchedOnHandIngredients: extracted.ingredients.map(
-                (i) => i.item,
-              ),
+              ingredients: extracted.ingredients.map((i) => i.item),
             };
           }
         } catch (err) {
@@ -226,7 +228,7 @@ export const recommendRecipesTool = createTool({
           title: candidate.title ?? `Recipe from ${candidate.boardName}`,
           sourceLink: candidate.sourceLink,
           boardName: candidate.boardName,
-          matchedOnHandIngredients: [],
+          ingredients: [],
         };
       }),
     );

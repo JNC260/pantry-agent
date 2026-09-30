@@ -1,4 +1,4 @@
-import { authedFetch } from "./api";
+import { fetchJson } from "./api";
 
 // Mirrors api/src/pantry/categories.ts — keep the two lists in sync.
 export const PANTRY_CATEGORIES = [
@@ -44,43 +44,41 @@ export type PantryItem = {
   category: PantryCategory;
 };
 
-export async function listPantryItems(): Promise<PantryItem[]> {
-  const res = await authedFetch("/pantry");
-  return res.json();
+export function listPantryItems(): Promise<PantryItem[]> {
+  return fetchJson("/pantry");
 }
 
-export async function createPantryItem(input: {
+export function createPantryItem(input: {
   ingredient: string;
   quantity?: number;
   unit?: string;
   expirationDate?: string;
   category?: PantryCategory;
 }): Promise<PantryItem> {
-  const res = await authedFetch("/pantry", {
+  return fetchJson("/pantry", {
     method: "POST",
     body: JSON.stringify(input),
   });
-  return res.json();
 }
 
-export async function updatePantryItem(
+// null clears a field; an omitted field is left unchanged.
+export function updatePantryItem(
   id: string,
   updates: Partial<{
     ingredient: string;
-    quantity: number;
-    unit: string;
-    expirationDate: string;
+    quantity: number | null;
+    unit: string | null;
+    expirationDate: string | null;
     lowStock: boolean;
     category: PantryCategory;
   }>,
 ): Promise<PantryItem> {
-  const res = await authedFetch(`/pantry/${id}`, {
+  return fetchJson(`/pantry/${id}`, {
     method: "PATCH",
     body: JSON.stringify(updates),
   });
-  return res.json();
 }
 
 export async function deletePantryItem(id: string): Promise<void> {
-  await authedFetch(`/pantry/${id}`, { method: "DELETE" });
+  await fetchJson(`/pantry/${id}`, { method: "DELETE" });
 }
