@@ -6,7 +6,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import { Masthead } from "@/components/masthead";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Pantry Agent",
+  title: "Privacy Policy — Pantry Whisperer",
 };
 
 // The policy lives once, in the repo root's privacy.md, and is read when

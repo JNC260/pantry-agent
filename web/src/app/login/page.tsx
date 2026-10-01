@@ -58,7 +58,7 @@ export default function LoginPage() {
           <div className="flex flex-col gap-1.5">
             <h1 className="font-display text-3xl font-medium">Log in</h1>
             <p className="text-[15px] text-walnut">
-              Enter the password to open Pantry Agent.
+              Enter the password to open Pantry Whisperer.
             </p>
           </div>
           <TextField

@@ -16,7 +16,7 @@ const publicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Pantry Agent",
+  title: "Pantry Whisperer",
   description:
     "An AI agent that recommends recipes from your Pinterest boards based on what you have on hand.",
 };
