@@ -8,7 +8,7 @@ export function Wordmark({ className = "" }: { className?: string }) {
     >
       <LogoMark className="h-[26px] w-[26px] flex-none" />
       <span>
-        Pantry <em className="font-normal text-mulberry">Agent</em>
+        Pantry <em className="font-normal text-mulberry">Whisperer</em>
       </span>
     </span>
   );
