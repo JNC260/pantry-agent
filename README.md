@@ -1,4 +1,4 @@
-# Pantry Agent
+# Pantry Whisperer
 
 [![CI](https://github.com/JNC260/pantry-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/JNC260/pantry-agent/actions/workflows/ci.yml)
 
@@ -49,11 +49,11 @@ through Pinterest's API and isn't offered as a public service (see the
 
 Three npm workspaces, each with its own README:
 
-| Workspace | Role |
-| --- | --- |
+| Workspace                                   | Role                                                                                                                                            |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`pantry-agent/`](./pantry-agent/README.md) | Mastra server: the chat agent, tools for Pinterest, recipe extraction, recommendations, and grocery lists, plus small single-purpose sub-agents |
-| [`api/`](./api/README.md) | NestJS: password login issuing a JWT, pantry CRUD, and the only client of the agent server |
-| [`web/`](./web/README.md) | Next.js: landing page, login, chat, and pantry pages |
+| [`api/`](./api/README.md)                   | NestJS: password login issuing a JWT, pantry CRUD, and the only client of the agent server                                                      |
+| [`web/`](./web/README.md)                   | Next.js: landing page, login, chat, and pantry pages                                                                                            |
 
 **Why the agent server isn't public.** Mastra's generated HTTP API has no
 authentication of its own. In production, `api` and `pantry-agent` run in the
