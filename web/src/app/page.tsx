@@ -46,13 +46,25 @@ export default function LandingPage() {
             <StillLife className="absolute left-0 top-0 w-[78%]" />
             <figure className="relative flex flex-col gap-2.5">
               <div className="aspect-video w-full overflow-hidden border border-rule bg-linen">
-                {/* TODO: replace YOUR_VIDEO_ID with the demo video once it's recorded */}
-                <iframe
-                  className="h-full w-full"
-                  src="https://www.youtube.com/embed/YOUR_VIDEO_ID"
-                  title="Pantry Agent demo"
-                  allowFullScreen
-                />
+                <div
+                  style={{
+                    position: "relative",
+                    paddingBottom: "50%",
+                    height: 0,
+                  }}
+                >
+                  <iframe
+                    src="https://www.loom.com/embed/544e2ffb9f574231a3d7de32a92a1538"
+                    allowFullScreen
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                    }}
+                  ></iframe>
+                </div>
               </div>
               <figcaption className="border-t border-rule pt-2 font-display text-sm italic text-walnut">
                 A quick tour: asking for dinner from what’s in the pantry.
