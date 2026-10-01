@@ -13,6 +13,8 @@ through Pinterest's API and isn't offered as a public service (see the
 [privacy policy](./privacy.md), also at
 [pantrywhisperer.com/privacy](https://pantrywhisperer.com/privacy)).
 
+![The login page: single user app with password](docs/screenshots/login.jpg)
+![The chat page: interface with recipe recommendation tool, recipe extraction tool, and grocery list tool](docs/screenshots/chat.jpg)
 ![The pantry page: items with quantities and expiry dates, and a "Use these first" list of items expiring soon](docs/screenshots/pantry.jpg)
 
 ## What it does
