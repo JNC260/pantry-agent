@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { Button, Card } from "@/components/ui";
 import { AppHeader } from "@/components/app-header";
 import {
   PANTRY_CATEGORIES,
   listPantryItems,
+  type PantryBatchResult,
   type PantryItem,
 } from "@/lib/pantry-api";
 import { useRequireAuth } from "@/lib/use-require-auth";
@@ -18,7 +19,10 @@ import {
   type StatusFilter,
 } from "./_lib/list-view";
 import { AddItemModal } from "./_components/add-item-modal";
+import { CookedLinkHandler } from "./_components/cooked-link-handler";
+import { CookedRecipeModal } from "./_components/cooked-recipe-modal";
 import { ExpiryNotices } from "./_components/expiry-notices";
+import { ImportReceiptModal } from "./_components/import-receipt-modal";
 import { PantryFilters } from "./_components/pantry-filters";
 import { PantryTable } from "./_components/pantry-table";
 
@@ -34,6 +38,12 @@ export default function PantryPage() {
   const [addOpen, setAddOpen] = useState(false);
   // A new key on each open remounts the modal, so it starts empty.
   const [addSession, setAddSession] = useState(0);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importSession, setImportSession] = useState(0);
+  const [cookedOpen, setCookedOpen] = useState(false);
+  const [cookedSession, setCookedSession] = useState(0);
+  // Set when arriving from the chat's link; the modal starts reading it.
+  const [cookedUrl, setCookedUrl] = useState<string | undefined>();
 
   const [sort, setSort] = useState<SortState>({
     key: "ingredient",
@@ -71,6 +81,30 @@ export default function PantryPage() {
   function openAdd() {
     setAddSession((n) => n + 1);
     setAddOpen(true);
+  }
+
+  function openImport() {
+    setImportSession((n) => n + 1);
+    setImportOpen(true);
+  }
+
+  // Stable, since CookedLinkHandler's effect depends on it.
+  const openCooked = useCallback((url?: string) => {
+    setCookedUrl(url);
+    setCookedSession((n) => n + 1);
+    setCookedOpen(true);
+  }, []);
+
+  // Folds a batch's results into the list without reloading it.
+  function applyBatchResult(result: PantryBatchResult) {
+    const updated = new Map(result.updated.map((item) => [item.id, item]));
+    const deleted = new Set(result.deleted);
+    setItems((prev) => [
+      ...prev
+        .filter((item) => !deleted.has(item.id))
+        .map((item) => updated.get(item.id) ?? item),
+      ...result.created,
+    ]);
   }
 
   function replaceItem(updated: PantryItem) {
@@ -127,7 +161,15 @@ export default function PantryPage() {
             <h1 className="font-display text-[32px] font-medium leading-tight">
               Your pantry
             </h1>
-            <Button onClick={openAdd}>Add item</Button>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="secondary" onClick={() => openCooked()}>
+                Cooked a recipe
+              </Button>
+              <Button variant="secondary" onClick={openImport}>
+                Import receipt
+              </Button>
+              <Button onClick={openAdd}>Add item</Button>
+            </div>
           </div>
 
           <ExpiryNotices items={items} />
@@ -139,6 +181,25 @@ export default function PantryPage() {
             items={items}
             onAdded={(item) => setItems((prev) => [...prev, item])}
           />
+
+          <ImportReceiptModal
+            key={`import-${importSession}`}
+            open={importOpen}
+            onClose={() => setImportOpen(false)}
+            items={items}
+            onApplied={applyBatchResult}
+          />
+
+          <CookedRecipeModal
+            key={`cooked-${cookedSession}`}
+            open={cookedOpen}
+            onClose={() => setCookedOpen(false)}
+            onApplied={applyBatchResult}
+            initialUrl={cookedUrl}
+          />
+          <Suspense fallback={null}>
+            <CookedLinkHandler onCookedLink={openCooked} />
+          </Suspense>
 
           {loading && (
             <p className="font-display italic text-walnut">

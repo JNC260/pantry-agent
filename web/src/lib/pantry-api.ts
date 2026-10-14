@@ -92,3 +92,88 @@ export function updatePantryItem(
 export async function deletePantryItem(id: string): Promise<void> {
   await fetchJson(`/pantry/${id}`, { method: "DELETE" });
 }
+
+export type PantryBatch = {
+  create?: NewPantryItem[];
+  update?: (PantryItemUpdates & { id: string })[];
+  delete?: string[];
+};
+
+export type PantryBatchResult = {
+  created: PantryItem[];
+  updated: PantryItem[];
+  deleted: string[];
+};
+
+// All or nothing: if any part fails, nothing is written.
+export function applyPantryBatch(batch: PantryBatch): Promise<PantryBatchResult> {
+  return fetchJson("/pantry/batch", {
+    method: "POST",
+    body: JSON.stringify(batch),
+  });
+}
+
+// A receipt line as the AI read it, before review. Mirrors ReceiptProposal
+// in pantry-agent/src/lib/receipt-items.ts.
+export type ProposedItem = {
+  receiptText: string;
+  ingredient: string;
+  quantity: number | null;
+  unit: string | null;
+  category: PantryCategory;
+  // Estimated from the purchase date.
+  expirationDate: string;
+  // The existing pantry item's exact name when this duplicates one.
+  existingIngredient: string | null;
+};
+
+export type ReceiptProposal = {
+  purchaseDate: string;
+  items: ProposedItem[];
+  skipped: string[];
+};
+
+// Reads a receipt (images, PDFs, and/or pasted text) into proposed items.
+// Writes nothing.
+export function parseReceipt(
+  files: Blob[],
+  text: string,
+): Promise<ReceiptProposal> {
+  const form = new FormData();
+  for (const file of files) form.append("files", file);
+  if (text.trim()) form.append("text", text);
+  return fetchJson("/pantry/ai/receipt", { method: "POST", body: form });
+}
+
+// How cooking a recipe changes one pantry row. Mirrors CookedProposal in
+// pantry-agent/src/lib/pantry-usage.ts.
+export type CookedChange = {
+  pantryItemId: string;
+  ingredient: string;
+  unit: string | null;
+  recipeIngredient: string;
+  before: number | null;
+  // Null when the amount left is unknown.
+  after: number | null;
+  action: "decrement" | "remove";
+  confidence: "sure" | "estimate" | "unsure";
+  note: string;
+};
+
+export type CookedProposal = {
+  recipeTitle: string | null;
+  changes: CookedChange[];
+  unmatched: string[];
+};
+
+export type CookedRecipe =
+  | { url: string; servings?: number }
+  | { ingredientsText: string; servings?: number };
+
+// Proposes pantry changes for a recipe that was cooked. Writes nothing.
+export function planCooked(recipe: CookedRecipe): Promise<CookedProposal> {
+  return fetchJson("/pantry/ai/cooked", {
+    method: "POST",
+    body: JSON.stringify(recipe),
+  });
+}

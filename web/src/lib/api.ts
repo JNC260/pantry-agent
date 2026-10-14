@@ -7,7 +7,10 @@ export async function authedFetch(path: string, options: RequestInit = {}) {
     ...options,
     headers: {
       ...options.headers,
-      "Content-Type": "application/json",
+      // FormData sets its own multipart Content-Type, boundary included.
+      ...(options.body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
       Authorization: `Bearer ${token}`,
     },
   });

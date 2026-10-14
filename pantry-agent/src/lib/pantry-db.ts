@@ -1,5 +1,6 @@
 /**
- * Read-only access to the pantry, for grocery lists.
+ * Read-only access to the pantry, for grocery lists and for the receipt and
+ * cooked-recipe routes. Writes always go through the api.
  *
  * The api owns the pantry_items table (schema and migrations in
  * api/src/pantry/pantry.db.ts); this reads the same database directly
@@ -45,5 +46,26 @@ export async function getPantryItems(): Promise<PantryItem[]> {
     expirationDate:
       row.expiration_date === null ? null : String(row.expiration_date),
     lowStock: Boolean(row.low_stock),
+  }));
+}
+
+// A pantry item plus what the pantry-ai routes need to refer back to it.
+export type PantryRow = PantryItem & { id: string; category: string };
+
+export async function getPantryRows(): Promise<PantryRow[]> {
+  const result = await getPantryDb().execute({
+    sql: "SELECT id, ingredient, quantity, unit, expiration_date, low_stock, category FROM pantry_items WHERE user_id = ?",
+    args: [OWNER_ID],
+  });
+
+  return result.rows.map((row) => ({
+    id: String(row.id),
+    ingredient: String(row.ingredient),
+    quantity: row.quantity === null ? null : Number(row.quantity),
+    unit: row.unit === null ? null : String(row.unit),
+    expirationDate:
+      row.expiration_date === null ? null : String(row.expiration_date),
+    lowStock: Boolean(row.low_stock),
+    category: String(row.category),
   }));
 }

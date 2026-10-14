@@ -164,4 +164,124 @@ describe('App (e2e)', () => {
       },
     );
   });
+
+  describe('POST /pantry/batch', () => {
+    type Item = { id: string; ingredient: string; quantity: number | null };
+
+    async function addItem(ingredient: string, quantity: number) {
+      const res = await request(app.getHttpServer())
+        .post('/pantry')
+        .set(auth)
+        .send({ ingredient, quantity })
+        .expect(201);
+      return (res.body as Item).id;
+    }
+
+    async function ingredients() {
+      const res = await request(app.getHttpServer())
+        .get('/pantry')
+        .set(auth)
+        .expect(200);
+      return (res.body as Item[]).map((item) => item.ingredient);
+    }
+
+    // The in-memory database is shared across tests in this file.
+    beforeEach(async () => {
+      const res = await request(app.getHttpServer()).get('/pantry').set(auth);
+      for (const item of res.body as Item[]) {
+        await request(app.getHttpServer())
+          .delete(`/pantry/${item.id}`)
+          .set(auth);
+      }
+    });
+
+    it('creates, updates, and deletes together', async () => {
+      const milk = await addItem('Milk', 1);
+      const eggs = await addItem('Eggs', 12);
+
+      const res = await request(app.getHttpServer())
+        .post('/pantry/batch')
+        .set(auth)
+        .send({
+          create: [{ ingredient: 'Black beans', quantity: 2, unit: 'can' }],
+          update: [{ id: eggs, quantity: 9 }],
+          delete: [milk],
+        })
+        .expect(201);
+
+      const body = res.body as {
+        created: Item[];
+        updated: Item[];
+        deleted: string[];
+      };
+      expect(body.created).toMatchObject([
+        { ingredient: 'Black beans', quantity: 2 },
+      ]);
+      expect(body.updated).toMatchObject([{ id: eggs, quantity: 9 }]);
+      expect(body.deleted).toEqual([milk]);
+      expect((await ingredients()).sort()).toEqual(['Black beans', 'Eggs']);
+    });
+
+    it('writes nothing when an item to change does not exist', async () => {
+      const milk = await addItem('Milk', 1);
+
+      await request(app.getHttpServer())
+        .post('/pantry/batch')
+        .set(auth)
+        .send({
+          create: [{ ingredient: 'Black beans' }],
+          delete: [milk, 'does-not-exist'],
+        })
+        .expect(404);
+
+      expect(await ingredients()).toEqual(['Milk']);
+    });
+
+    it('rejects an invalid item anywhere in the batch', () => {
+      return request(app.getHttpServer())
+        .post('/pantry/batch')
+        .set(auth)
+        .send({ create: [{ ingredient: 'Rice' }, { ingredient: '' }] })
+        .expect(400);
+    });
+  });
+
+  describe('POST /pantry/ai/cooked', () => {
+    it.each([
+      ['neither a url nor ingredients', {}],
+      [
+        'both a url and ingredients',
+        { url: 'https://example.com/r', ingredientsText: '2 eggs' },
+      ],
+      ['a url without a protocol', { url: 'example.com/recipe' }],
+      ['servings out of range', { ingredientsText: '2 eggs', servings: 0 }],
+    ])('rejects %s', (_label, body) => {
+      return request(app.getHttpServer())
+        .post('/pantry/ai/cooked')
+        .set(auth)
+        .send(body)
+        .expect(400);
+    });
+  });
+
+  describe('POST /pantry/ai/receipt', () => {
+    it('requires a file or text', () => {
+      return request(app.getHttpServer())
+        .post('/pantry/ai/receipt')
+        .set(auth)
+        .field('text', '  ')
+        .expect(400);
+    });
+
+    it('rejects a file type Claude cannot read', () => {
+      return request(app.getHttpServer())
+        .post('/pantry/ai/receipt')
+        .set(auth)
+        .attach('files', Buffer.from('a,b'), {
+          filename: 'receipt.csv',
+          contentType: 'text/csv',
+        })
+        .expect(400);
+    });
+  });
 });

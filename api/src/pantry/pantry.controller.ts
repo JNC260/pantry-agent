@@ -11,10 +11,11 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PantryService } from './pantry.service';
+import { BatchPantryDto } from './dto/batch-pantry.dto';
 import { CreatePantryItemDto } from './dto/create-pantry-item.dto';
 import { UpdatePantryItemDto } from './dto/update-pantry-item.dto';
 
-/** /pantry CRUD routes (all require a JWT). */
+/** /pantry CRUD routes, plus POST /pantry/batch (all require a JWT). */
 @Controller('pantry')
 @UseGuards(JwtAuthGuard)
 export class PantryController {
@@ -35,6 +36,13 @@ export class PantryController {
   @Post()
   create(@Body() dto: CreatePantryItemDto) {
     return this.pantryService.create(dto);
+  }
+
+  @Post('batch')
+  async batch(@Body() dto: BatchPantryDto) {
+    const result = await this.pantryService.batch(dto);
+    if (!result) throw new NotFoundException('Pantry item not found');
+    return result;
   }
 
   @Patch(':id')
