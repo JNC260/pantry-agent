@@ -5,6 +5,7 @@ import { Button, Card } from "@/components/ui";
 import { AppHeader } from "@/components/app-header";
 import {
   getRecipeIndexReport,
+  refreshRecipeIndex,
   type RecipeIndexReport,
   type UnreadableRecipe,
 } from "@/lib/recipe-index-api";
@@ -21,6 +22,12 @@ export default function PinsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   // Bumped by Retry to run the load effect again.
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  // What the last refresh came to, shown under its button.
+  const [refreshNote, setRefreshNote] = useState<{
+    text: string;
+    error: boolean;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +52,30 @@ export default function PinsPage() {
     setLoading(true);
     setLoadError(null);
     setLoadAttempt((n) => n + 1);
+  }
+
+  async function refresh() {
+    setRefreshing(true);
+    setRefreshNote(null);
+    try {
+      const { failedBoards, ...updated } = await refreshRecipeIndex();
+      setReport(updated);
+      setRefreshNote(
+        failedBoards.length > 0
+          ? {
+              text: `Updated, except ${failedBoards.join(", ")}, which Pinterest didn't return. Try again later.`,
+              error: true,
+            }
+          : { text: "Up to date with Pinterest.", error: false },
+      );
+    } catch {
+      setRefreshNote({
+        text: "Couldn't reach Pinterest. Try again in a bit.",
+        error: true,
+      });
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   const groups = report ? groupUnreadable(report.unreadable) : [];
@@ -80,6 +111,23 @@ export default function PinsPage() {
           {!loading && !loadError && report && (
             <>
               <Counts counts={report.counts} />
+
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <Button
+                  variant="secondary"
+                  onClick={refresh}
+                  disabled={refreshing}
+                >
+                  {refreshing ? "Refreshing…" : "Refresh from Pinterest"}
+                </Button>
+                <p
+                  role="status"
+                  className={`text-sm ${refreshNote?.error ? "text-paprika" : "text-walnut"}`}
+                >
+                  {refreshNote?.text ??
+                    "Deleted or fixed a pin on Pinterest? Refresh to update this list."}
+                </p>
+              </div>
 
               {groups.length === 0 ? (
                 <p className="text-walnut">No unreadable pins so far.</p>

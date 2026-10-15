@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { getFromMastra } from '../mastra/mastra-client';
+import { getFromMastra, postToMastra } from '../mastra/mastra-client';
 
 // Mirrors RecipeIndexReport in pantry-agent/src/lib/recipe-index-report.ts.
 export type RecipeIndexReport = {
@@ -24,10 +24,18 @@ export type RecipeIndexReport = {
   }[];
 };
 
-/** Relays the recipe index report from the Mastra server. */
+// The report after a refresh, plus the recipe boards that couldn't be
+// re-downloaded (their pins are as they were).
+export type RecipeIndexRefresh = RecipeIndexReport & { failedBoards: string[] };
+
+/** Relays the recipe index report (and its refresh) from the Mastra server. */
 @Injectable()
 export class RecipeIndexService {
   getReport(): Promise<RecipeIndexReport> {
     return getFromMastra<RecipeIndexReport>('/recipe-index/report');
+  }
+
+  refresh(): Promise<RecipeIndexRefresh> {
+    return postToMastra<RecipeIndexRefresh>('/recipe-index/refresh', {});
   }
 }

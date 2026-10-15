@@ -1,11 +1,7 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { pinterestGetAll, type PinterestBoard } from "../../lib/pinterest-api";
-import {
-  replaceCachedBoards,
-  boardsAreFresh,
-  getCachedBoards,
-} from "../../lib/pinterest-cache";
+import { boardsAreFresh, getCachedBoards } from "../../lib/pinterest-cache";
+import { fetchBoards } from "../../lib/pinterest-refresh";
 
 /**
  * Lists the user's Pinterest boards (id and name).
@@ -39,9 +35,8 @@ export const getBoardsTool = createTool({
       if (boards.length > 0) return { boards };
     }
 
-    let items;
     try {
-      items = await pinterestGetAll<PinterestBoard>("/boards");
+      return { boards: await fetchBoards() };
     } catch (err) {
       // Stale boards beat no boards; pinterestGet already logged the failure.
       const cached = await getCachedBoards();
@@ -49,12 +44,5 @@ export const getBoardsTool = createTool({
       console.warn("[get-boards] Pinterest unavailable; serving cached boards");
       return { boards: cached };
     }
-
-    const boards = items.map((b) => ({
-      id: b.id,
-      name: b.name,
-    }));
-    await replaceCachedBoards(boards);
-    return { boards };
   },
 });

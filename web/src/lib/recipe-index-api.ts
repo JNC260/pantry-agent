@@ -27,3 +27,13 @@ export type RecipeIndexReport = {
 export function getRecipeIndexReport(): Promise<RecipeIndexReport> {
   return fetchJson("/recipe-index/report");
 }
+
+// The report after re-downloading the recipe boards from Pinterest, plus the
+// boards that couldn't be refreshed.
+export type RecipeIndexRefresh = RecipeIndexReport & { failedBoards: string[] };
+
+// Re-downloads the recipe boards, so pins deleted or fixed on Pinterest drop
+// off the report.
+export function refreshRecipeIndex(): Promise<RecipeIndexRefresh> {
+  return fetchJson("/recipe-index/refresh", { method: "POST" });
+}

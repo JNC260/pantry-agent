@@ -1,11 +1,7 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { pinterestGetAll, type PinterestPin } from "../../lib/pinterest-api";
-import {
-  getCachedPins,
-  pinsAreFresh,
-  replaceCachedPins,
-} from "../../lib/pinterest-cache";
+import { getCachedPins, pinsAreFresh } from "../../lib/pinterest-cache";
+import { fetchBoardPins } from "../../lib/pinterest-refresh";
 
 /**
  * Lists one board's pins, each with its title and the link back to the
@@ -45,9 +41,8 @@ export const getPinsFromBoardTool = createTool({
       if (pins.length > 0) return { pins };
     }
 
-    let items;
     try {
-      items = await pinterestGetAll<PinterestPin>(`/boards/${boardId}/pins`);
+      return { pins: await fetchBoardPins(boardId) };
     } catch (err) {
       // Stale pins beat no pins; pinterestGet already logged the failure.
       const cached = await getCachedPins(boardId);
@@ -55,14 +50,5 @@ export const getPinsFromBoardTool = createTool({
       console.warn(`[get-pins] Pinterest unavailable; serving cached pins for board ${boardId}`);
       return { pins: cached };
     }
-
-    const pins = items.map((p) => ({
-      id: p.id,
-      title: p.title ?? null,
-      sourceLink: p.link ?? null,
-    }));
-
-    await replaceCachedPins(boardId, pins);
-    return { pins };
   },
 });

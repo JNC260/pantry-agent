@@ -18,7 +18,10 @@ import { receiptAgent } from "./agents/receipt-agent";
 import { pantryUsageAgent } from "./agents/pantry-usage-agent";
 import { ingredientListAgent } from "./agents/ingredient-list-agent";
 import { parseReceiptRoute, planCookedRoute } from "./routes/pantry-ai";
-import { recipeIndexReportRoute } from "./routes/recipe-index";
+import {
+  recipeIndexRefreshRoute,
+  recipeIndexReportRoute,
+} from "./routes/recipe-index";
 import {
   checkPinterestConnection,
   startPinterestHealthChecks,
@@ -46,6 +49,7 @@ export const mastra = new Mastra({
       parseReceiptRoute,
       planCookedRoute,
       recipeIndexReportRoute,
+      recipeIndexRefreshRoute,
       registerApiRoute("/health/pinterest", {
         method: "GET",
         // createHandler runs once at server startup, which is where the
