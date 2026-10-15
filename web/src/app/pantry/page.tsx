@@ -1,19 +1,20 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { Button, Card } from "@/components/ui";
 import { AppHeader } from "@/components/app-header";
 import {
   PANTRY_CATEGORIES,
   listPantryItems,
   type PantryBatchResult,
+  type PantryCategory,
   type PantryItem,
 } from "@/lib/pantry-api";
 import { useRequireAuth } from "@/lib/use-require-auth";
 import {
   filterItems,
   sortItems,
-  type CategoryFilter,
   type SortKey,
   type SortState,
   type StatusFilter,
@@ -25,6 +26,8 @@ import { ExpiryNotices } from "./_components/expiry-notices";
 import { ImportReceiptModal } from "./_components/import-receipt-modal";
 import { PantryFilters } from "./_components/pantry-filters";
 import { PantryTable } from "./_components/pantry-table";
+import { ViewControls } from "./_components/view-controls";
+import { loadPrefs, savePrefs, type ViewPrefs } from "./_lib/view-prefs";
 
 export default function PantryPage() {
   useRequireAuth();
@@ -51,7 +54,9 @@ export default function PantryPage() {
   });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  // Read on the first client render; the server render shows only the
+  // loading state, which doesn't depend on it.
+  const [prefs, setPrefs] = useState<ViewPrefs>(loadPrefs);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,24 +122,48 @@ export default function PantryPage() {
     setItems((prev) => prev.filter((item) => item.id !== id));
   }
 
-  // Only offer categories that have items. If the chosen one empties out
-  // (last item deleted or recategorized), fall back to all categories.
-  const presentCategories = PANTRY_CATEGORIES.filter((c) =>
-    items.some((item) => item.category === c),
-  );
-  const activeCategory: CategoryFilter =
-    categoryFilter !== "all" && presentCategories.includes(categoryFilter)
-      ? categoryFilter
-      : "all";
+  const filters = { query: search, status: statusFilter };
+  const filtering = search.trim() !== "" || statusFilter !== "all";
+  const visible = sortItems(filterItems(items, filters), sort);
 
-  const visible = sortItems(
-    filterItems(items, {
-      query: search,
-      status: statusFilter,
-      category: activeCategory,
-    }),
-    sort,
-  );
+  function updatePrefs(changes: Partial<ViewPrefs>) {
+    const next = { ...prefs, ...changes };
+    setPrefs(next);
+    savePrefs(next);
+  }
+
+  function toggleCategory(category: PantryCategory) {
+    updatePrefs({
+      collapsed: prefs.collapsed.includes(category)
+        ? prefs.collapsed.filter((c) => c !== category)
+        : [...prefs.collapsed, category],
+    });
+  }
+
+  // Only categories with items, so one added later starts expanded.
+  function collapseAll() {
+    updatePrefs({
+      collapsed: PANTRY_CATEGORIES.filter((c) =>
+        items.some((item) => item.category === c),
+      ),
+    });
+  }
+
+  // A notice link is about to jump to this item's row, so make sure the row
+  // is rendered: clear filters that hide it and expand its section. Flushed
+  // synchronously because the browser follows the link right after this
+  // click handler, and the row has to be in the DOM by then for the scroll
+  // and :target highlight to land.
+  function revealItem(item: PantryItem) {
+    flushSync(() => {
+      if (filterItems([item], filters).length === 0) clearFilters();
+      if (prefs.collapsed.includes(item.category)) {
+        updatePrefs({
+          collapsed: prefs.collapsed.filter((c) => c !== item.category),
+        });
+      }
+    });
+  }
 
   // Clicking the active column flips its direction; a new column starts
   // ascending.
@@ -149,7 +178,6 @@ export default function PantryPage() {
   function clearFilters() {
     setSearch("");
     setStatusFilter("all");
-    setCategoryFilter("all");
   }
 
   return (
@@ -172,7 +200,7 @@ export default function PantryPage() {
             </div>
           </div>
 
-          <ExpiryNotices items={items} />
+          <ExpiryNotices items={items} onReveal={revealItem} />
 
           <AddItemModal
             key={addSession}
@@ -229,12 +257,17 @@ export default function PantryPage() {
                 onSearchChange={setSearch}
                 status={statusFilter}
                 onStatusChange={setStatusFilter}
-                category={activeCategory}
-                onCategoryChange={setCategoryFilter}
-                categories={presentCategories}
                 visibleCount={visible.length}
                 totalCount={items.length}
                 onClear={clearFilters}
+              />
+
+              <ViewControls
+                compact={prefs.compact}
+                onCompactChange={(compact) => updatePrefs({ compact })}
+                filtering={filtering}
+                onExpandAll={() => updatePrefs({ collapsed: [] })}
+                onCollapseAll={collapseAll}
               />
 
               {visible.length === 0 ? (
@@ -249,6 +282,10 @@ export default function PantryPage() {
                   items={visible}
                   sort={sort}
                   onSort={toggleSort}
+                  compact={prefs.compact}
+                  collapsed={prefs.collapsed}
+                  filtering={filtering}
+                  onToggleCategory={toggleCategory}
                   onItemChange={replaceItem}
                   onItemDelete={removeItem}
                 />

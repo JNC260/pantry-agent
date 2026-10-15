@@ -3,12 +3,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui";
 import { freshness, freshnessLabel, type Freshness } from "@/lib/freshness";
-import {
-  CATEGORY_LABELS,
-  updatePantryItem,
-  type PantryItem,
-} from "@/lib/pantry-api";
-import { TABLE_COLUMNS } from "./table-columns";
+import { updatePantryItem, type PantryItem } from "@/lib/pantry-api";
+import { RowMenu } from "./row-menu";
+import { tableColumns } from "./table-columns";
 
 const freshnessStyles: Record<Freshness, string> = {
   expired: "text-paprika font-semibold before:bg-current",
@@ -18,9 +15,11 @@ const freshnessStyles: Record<Freshness, string> = {
 };
 
 // One item's row when it isn't being edited: its details, the low-stock
-// toggle, and Edit/Delete (with an inline "Delete?" confirmation).
+// toggle, and Edit/Delete (with an inline "Delete?" confirmation). Compact
+// rows are smaller and put the actions in a "⋯" menu.
 export function ItemRow({
   item,
+  compact,
   confirmingDelete,
   deleting,
   deleteError,
@@ -31,6 +30,7 @@ export function ItemRow({
   onCancelDelete,
 }: {
   item: PantryItem;
+  compact: boolean;
   confirmingDelete: boolean;
   deleting: boolean;
   deleteError: string | null;
@@ -60,10 +60,12 @@ export function ItemRow({
 
   return (
     <div
-      className={`grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-5 gap-y-1 ${TABLE_COLUMNS}`}
+      className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-5 gap-y-1 ${compact ? "items-center" : "items-baseline"} ${tableColumns(compact)}`}
     >
       <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-        <span className="font-display text-[19px] font-medium">
+        <span
+          className={`font-display font-medium ${compact ? "text-base" : "text-[19px]"}`}
+        >
           {item.ingredient}
         </span>
         {item.lowStock && (
@@ -89,11 +91,6 @@ export function ItemRow({
           </span>
         )}
       </span>
-      {/* On phones the columns stack, so the category moves under the name
-          instead. */}
-      <span className="text-sm text-walnut max-sm:col-span-2 max-sm:row-start-2 max-sm:-mt-1 max-sm:text-xs">
-        {CATEGORY_LABELS[item.category]}
-      </span>
       <span
         className={`text-[15px] tabular-nums ${item.lowStock ? "text-saffron" : ""}`}
       >
@@ -113,7 +110,10 @@ export function ItemRow({
 
       {confirmingDelete ? (
         // Kept short enough to fit the 190px actions column on one line.
-        <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1 whitespace-nowrap sm:col-span-1 sm:justify-self-end">
+        // Compact rows' column is too narrow, so it gets a line of its own.
+        <div
+          className={`col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1 whitespace-nowrap sm:justify-self-end ${compact ? "sm:col-span-full" : "sm:col-span-1"}`}
+        >
           <span className="text-sm">Delete?</span>
           <Button
             variant="danger-text"
@@ -132,6 +132,15 @@ export function ItemRow({
             </span>
           )}
         </div>
+      ) : compact ? (
+        <RowMenu
+          ingredient={item.ingredient}
+          lowStock={item.lowStock}
+          flagging={flagging}
+          onMarkLow={() => setLowStock(true)}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       ) : (
         <div className="flex gap-4 justify-self-end">
           {/* Hidden rather than removed when flagged, so the actions column

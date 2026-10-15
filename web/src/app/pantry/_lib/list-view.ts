@@ -1,14 +1,13 @@
 import {
-  CATEGORY_LABELS,
+  PANTRY_CATEGORIES,
   type PantryCategory,
   type PantryItem,
 } from "@/lib/pantry-api";
 import { freshness } from "@/lib/freshness";
 
-export type SortKey = "ingredient" | "category" | "quantity" | "expires";
+export type SortKey = "ingredient" | "quantity" | "expires";
 export type SortState = { key: SortKey; dir: "asc" | "desc" };
 export type StatusFilter = "all" | "low" | "expiring";
-export type CategoryFilter = PantryCategory | "all";
 
 export const statusOptions: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All items" },
@@ -19,6 +18,17 @@ export const statusOptions: { value: StatusFilter; label: string }[] = [
 // The id each row is rendered with, so the expiry notices can link to it.
 export function itemAnchor(item: PantryItem): string {
   return `item-${item.id}`;
+}
+
+export type CategoryGroup = { category: PantryCategory; items: PantryItem[] };
+
+// Splits a sorted list into one group per category that has items, in the
+// usual category order, keeping each group's items in the order given.
+export function groupByCategory(items: PantryItem[]): CategoryGroup[] {
+  return PANTRY_CATEGORIES.map((category) => ({
+    category,
+    items: items.filter((item) => item.category === category),
+  })).filter((group) => group.items.length > 0);
 }
 
 const byName = (a: PantryItem, b: PantryItem) =>
@@ -45,9 +55,6 @@ export function sortItems(
   const direction = dir === "asc" ? 1 : -1;
   const primary: Record<SortKey, (a: PantryItem, b: PantryItem) => number> = {
     ingredient: (a, b) => byName(a, b) * direction,
-    category: (a, b) =>
-      CATEGORY_LABELS[a.category].localeCompare(CATEGORY_LABELS[b.category]) *
-      direction,
     quantity: (a, b) =>
       compareMissingLast(a.quantity, b.quantity, (x, y) => x - y, direction),
     // "YYYY-MM-DD" compares correctly as a string.
@@ -59,8 +66,7 @@ export function sortItems(
         direction,
       ),
   };
-  // Ties fall back to name A–Z, so e.g. sorting by category lists each
-  // category's items alphabetically.
+  // Ties fall back to name A–Z.
   return [...items].sort((a, b) => primary[key](a, b) || byName(a, b));
 }
 
@@ -75,17 +81,12 @@ export function matchesStatus(item: PantryItem, filter: StatusFilter): boolean {
 
 export function filterItems(
   items: PantryItem[],
-  {
-    query,
-    status,
-    category,
-  }: { query: string; status: StatusFilter; category: CategoryFilter },
+  { query, status }: { query: string; status: StatusFilter },
 ): PantryItem[] {
   const needle = query.trim().toLowerCase();
   return items.filter(
     (item) =>
       item.ingredient.toLowerCase().includes(needle) &&
-      matchesStatus(item, status) &&
-      (category === "all" || item.category === category),
+      matchesStatus(item, status),
   );
 }

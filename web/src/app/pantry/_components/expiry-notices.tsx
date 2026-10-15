@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { AppleCoreIcon, CitrusIcon } from "@/components/graphics";
 import { formatDate, freshness } from "@/lib/freshness";
 import type { PantryItem } from "@/lib/pantry-api";
 import { itemAnchor } from "../_lib/list-view";
+import { useDismiss } from "../_lib/use-dismiss";
 
 type NoticeKind = "expired" | "soon";
 
@@ -56,14 +57,22 @@ function buildNotices(items: PantryItem[]): Notice[] {
 }
 
 // The expanded list for a notice. Each name jumps to its row in the table
-// below, where the edit/delete actions live.
-function NoticeItems({ items, describe }: Pick<Notice, "items" | "describe">) {
+// below, where the edit/delete actions live. onReveal runs before the jump,
+// so it can make sure the row is rendered (e.g. expand its section).
+function NoticeItems({
+  items,
+  describe,
+  onReveal,
+}: Pick<Notice, "items" | "describe"> & {
+  onReveal: (item: PantryItem) => void;
+}) {
   return (
     <ul className="flex flex-col gap-2 text-sm">
       {items.map((item) => (
         <li key={item.id} className="flex flex-col items-start">
           <a
             href={`#${itemAnchor(item)}`}
+            onClick={() => onReveal(item)}
             className="underline decoration-current/40 underline-offset-[3px] transition-colors hover:decoration-current"
           >
             {item.ingredient}
@@ -79,27 +88,19 @@ function NoticeItems({ items, describe }: Pick<Notice, "items" | "describe">) {
 
 // "Toss these now" and "Use these first" buttons above the table, each
 // opening a list of the matching items. Renders nothing when neither applies.
-export function ExpiryNotices({ items }: { items: PantryItem[] }) {
+export function ExpiryNotices({
+  items,
+  onReveal,
+}: {
+  items: PantryItem[];
+  onReveal: (item: PantryItem) => void;
+}) {
   const [openNotice, setOpenNotice] = useState<NoticeKind | null>(null);
   const noticesRef = useRef<HTMLDivElement>(null);
 
-  // The notice lists float over the page, so close them like any popover:
-  // on a click elsewhere or Escape.
-  useEffect(() => {
-    if (!openNotice) return;
-    function onPointerDown(e: PointerEvent) {
-      if (!noticesRef.current?.contains(e.target as Node)) setOpenNotice(null);
-    }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpenNotice(null);
-    }
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [openNotice]);
+  // The notice lists float over the page, so close them like any popover.
+  const close = useCallback(() => setOpenNotice(null), []);
+  useDismiss(noticesRef, openNotice !== null, close);
 
   const notices = buildNotices(items);
   if (notices.length === 0) return null;
@@ -146,7 +147,11 @@ export function ExpiryNotices({ items }: { items: PantryItem[] }) {
                 id={`notice-${notice.kind}`}
                 className={`absolute inset-x-0 top-full z-20 rounded-b-app border border-walnut/30 border-t-walnut/20 px-3 pb-3 pt-2.5 ${notice.wash}`}
               >
-                <NoticeItems items={notice.items} describe={notice.describe} />
+                <NoticeItems
+                  items={notice.items}
+                  describe={notice.describe}
+                  onReveal={onReveal}
+                />
               </div>
             )}
           </div>
