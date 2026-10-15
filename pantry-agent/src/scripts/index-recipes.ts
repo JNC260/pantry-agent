@@ -9,6 +9,7 @@
  */
 import { parseArgs } from "node:util";
 import { getAllCachedPinsLightweight } from "../lib/pinterest-cache";
+import { findBlockedSites } from "../lib/blocked-sites";
 import { getRecipeIndex } from "../lib/recipe-index";
 import { buildRecipeIndexReport } from "../lib/recipe-index-report";
 import { indexPendingRecipes } from "../mastra/recipe-indexer";
@@ -26,7 +27,12 @@ async function printStatus() {
     getAllCachedPinsLightweight(),
     getRecipeIndex(),
   ]);
-  console.log(buildRecipeIndexReport(pins, index).counts);
+  const { counts, blockedSites } = buildRecipeIndexReport(
+    pins,
+    index,
+    findBlockedSites(index.values()),
+  );
+  console.log({ ...counts, blockedSites });
 }
 
 if (values.status) {

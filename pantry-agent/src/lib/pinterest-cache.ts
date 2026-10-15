@@ -48,7 +48,8 @@ async function createTables() {
         id TEXT PRIMARY KEY,
         board_id TEXT NOT NULL,
         title TEXT,
-        source_link TEXT
+        source_link TEXT,
+        description TEXT
       )`,
       `CREATE TABLE IF NOT EXISTS cache_meta (
         cache_key TEXT PRIMARY KEY,
@@ -57,6 +58,12 @@ async function createTables() {
     ],
     "write",
   );
+  // Columns added after the table first shipped. Existing pins get theirs
+  // on their board's next refresh.
+  const columns = await client.execute("PRAGMA table_info(pins_cache)");
+  if (!columns.rows.some((row) => row.name === "description")) {
+    await client.execute("ALTER TABLE pins_cache ADD COLUMN description TEXT");
+  }
 }
 
 async function isFresh(
@@ -127,15 +134,21 @@ export async function pinsAreFresh(boardId: string, maxAgeMs?: number) {
 
 export async function replaceCachedPins(
   boardId: string,
-  pins: { id: string; title: string | null; sourceLink: string | null }[],
+  pins: {
+    id: string;
+    title: string | null;
+    sourceLink: string | null;
+    description: string | null;
+  }[],
 ) {
   await ensureTables();
   await client.batch(
     [
       { sql: "DELETE FROM pins_cache WHERE board_id = ?", args: [boardId] },
       ...pins.map((p) => ({
-        sql: "INSERT INTO pins_cache (id, board_id, title, source_link) VALUES (?, ?, ?, ?)",
-        args: [p.id, boardId, p.title, p.sourceLink],
+        sql: `INSERT INTO pins_cache (id, board_id, title, source_link, description)
+              VALUES (?, ?, ?, ?, ?)`,
+        args: [p.id, boardId, p.title, p.sourceLink, p.description],
       })),
     ],
     "write",
@@ -149,7 +162,8 @@ export async function replaceCachedPins(
 async function getPinsWithBoards(boardId?: string) {
   await ensureTables();
   const result = await client.execute({
-    sql: `SELECT p.id, p.title, p.source_link, p.board_id, b.name AS board_name
+    sql: `SELECT p.id, p.title, p.source_link, p.description, p.board_id,
+                 b.name AS board_name
           FROM pins_cache p
           JOIN boards_cache b ON b.id = p.board_id
           ${boardId ? "WHERE p.board_id = ?" : ""}`,
@@ -159,6 +173,7 @@ async function getPinsWithBoards(boardId?: string) {
     id: String(r.id),
     title: r.title === null ? null : String(r.title),
     sourceLink: r.source_link === null ? null : String(r.source_link),
+    description: r.description == null ? null : String(r.description),
     boardId: String(r.board_id),
     boardName: String(r.board_name),
   }));
@@ -184,14 +199,17 @@ export type LightweightPin = {
   title: string | null;
   boardName: string;
   sourceLink: string | null;
+  // The pin's Pinterest description, often the recipe site's own blurb.
+  description: string | null;
 };
 
 export async function getAllCachedPinsLightweight(): Promise<LightweightPin[]> {
   const pins = await getPinsWithBoards();
-  return pins.map(({ id, title, boardName, sourceLink }) => ({
+  return pins.map(({ id, title, boardName, sourceLink, description }) => ({
     id,
     title,
     boardName,
     sourceLink,
+    description,
   }));
 }

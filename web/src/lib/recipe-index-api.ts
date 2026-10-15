@@ -21,6 +21,9 @@ export type RecipeIndexReport = {
     pending: number;
   };
   unreadable: UnreadableRecipe[];
+  // Sites among those that block automated reading: their pins are still
+  // recommended, by title and description, but not read again.
+  blockedSites: string[];
 };
 
 // How far the recipe index has got, and the recipe pins it couldn't read.

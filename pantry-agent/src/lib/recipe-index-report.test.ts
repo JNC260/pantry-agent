@@ -7,6 +7,7 @@ const pin = (overrides: Partial<LightweightPin>): LightweightPin => ({
   title: "A recipe",
   boardName: "Pastabilities",
   sourceLink: "https://example.com/a",
+  description: null,
   ...overrides,
 });
 
@@ -35,6 +36,7 @@ describe("buildRecipeIndexReport", () => {
         ["https://dead", failed()],
         ["https://flaky", { ...failed(), status: "retry" as const }],
       ]),
+      new Set(),
     );
     expect(counts).toEqual({ recipes: 4, indexed: 1, unreadable: 1, pending: 2 });
   });
@@ -46,6 +48,7 @@ describe("buildRecipeIndexReport", () => {
         pin({ id: "12", sourceLink: "https://dead", boardName: "Sweet stuff" }),
       ],
       new Map<string, IndexRow>([["https://dead", failed()]]),
+      new Set(),
     );
     expect(unreadable).toEqual([
       {
@@ -70,5 +73,23 @@ describe("buildRecipeIndexReport", () => {
         ],
       },
     ]);
+  });
+
+  it("names the blocked sites that have unreadable recipes", () => {
+    const unreadable = { ...failed(), reason: "unreadable" as const };
+    const { blockedSites } = buildRecipeIndexReport(
+      [
+        pin({ id: "1", sourceLink: "https://www.b.com/1" }),
+        pin({ id: "2", sourceLink: "https://a.com/2" }),
+        pin({ id: "3", sourceLink: "https://c.com/3" }),
+      ],
+      new Map<string, IndexRow>([
+        ["https://www.b.com/1", unreadable],
+        ["https://a.com/2", unreadable],
+        ["https://c.com/3", unreadable],
+      ]),
+      new Set(["b.com", "a.com", "elsewhere.com"]),
+    );
+    expect(blockedSites).toEqual(["a.com", "b.com"]);
   });
 });

@@ -10,6 +10,7 @@
  * see recipe-index-entry.ts).
  */
 import { client } from "./pinterest-cache";
+import { findBlockedSites } from "./blocked-sites";
 import type { FailureReason, RecipeIndexEntry } from "./recipe-index-entry";
 
 export type { RecipeIndexEntry };
@@ -102,6 +103,11 @@ export async function getRecipeIndex(): Promise<Map<string, RecipeIndexRow>> {
     }
   }
   return entries;
+}
+
+/** Sites that block automated reading; see blocked-sites.ts. */
+export async function getBlockedSites(): Promise<Set<string>> {
+  return findBlockedSites((await getRecipeIndex()).values());
 }
 
 export async function saveRecipeIndexEntries(entries: RecipeIndexEntry[]) {

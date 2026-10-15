@@ -4,6 +4,7 @@ import { getAllCachedPinsLightweight } from "../lib/pinterest-cache";
 import { refreshRecipeBoards } from "../lib/pinterest-refresh";
 import { selectablePins } from "../lib/recipe-boards";
 import { getRecipeIndex, saveRecipeIndexEntries } from "../lib/recipe-index";
+import { findBlockedSites, siteOf } from "../lib/blocked-sites";
 import { toIndexEntry, type Outcome } from "../lib/recipe-index-entry";
 import { parseRecipeJsonLd } from "../lib/recipe-jsonld";
 import {
@@ -194,6 +195,9 @@ export type IndexSummary = {
   fromPageData: number;
   fromAi: number;
   failed: number;
+  // Of those failed, links on a site that blocks automated reading, which
+  // weren't sent to Tavily (see blocked-sites.ts).
+  skippedBlocked: number;
   // Transient errors, tried again next run.
   retryLater: number;
 };
@@ -202,7 +206,8 @@ export type IndexSummary = {
  * Indexes recipe pins that aren't in the index yet or hit a transient
  * error last time (and, with `retryFailed`, ones given up on), at most
  * `limit` of them. Saves after every chunk, so an interrupted run keeps its
- * progress.
+ * progress. Links on a site that blocks automated reading only get the free
+ * direct fetch, unless `retryFailed` asks to try everything again.
  */
 export async function indexPendingRecipes({
   limit,
@@ -235,18 +240,39 @@ export async function indexPendingRecipes({
     fromPageData: 0,
     fromAi: 0,
     failed: 0,
+    skippedBlocked: 0,
     retryLater: 0,
   };
 
   for (let start = 0; start < toIndex.length; start += CHUNK_SIZE) {
     const chunk = toIndex.slice(start, start + CHUNK_SIZE);
     const direct = await mapLimit(chunk, FETCH_CONCURRENCY, readDirectly);
+    const blocked = retryFailed ? new Set<string>() : findBlockedSites(index.values());
+    const skipped: Outcome[] = [];
+    const forTavily: string[] = [];
+    chunk.forEach((url, i) => {
+      if (direct[i] !== null) return;
+      const site = siteOf(url);
+      if (site && blocked.has(site)) {
+        skipped.push({
+          url,
+          kind: "failed",
+          reason: "unreadable",
+          error: `${site} blocks automated reading, so it wasn't tried again`,
+        });
+      } else forTavily.push(url);
+    });
     const outcomes = [
       ...direct.filter((o): o is Outcome => o !== null),
-      ...(await readWithTavily(chunk.filter((_, i) => direct[i] === null))),
+      ...skipped,
+      ...(await readWithTavily(forTavily)),
     ];
     const entries = outcomes.map((o) => toIndexEntry(o, index.get(o.url)));
     await saveRecipeIndexEntries(entries);
+    // Later chunks see what this one learned (a site may now count as
+    // blocked).
+    for (const entry of entries) index.set(entry.url, { ...entry, indexedAt: Date.now() });
+    summary.skippedBlocked += skipped.length;
 
     for (const entry of entries) {
       if (entry.status === "ok") {

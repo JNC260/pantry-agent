@@ -3,7 +3,7 @@ import { Agent } from "@mastra/core/agent";
 /**
  * Shortlists pins for recommend-recipes from titles and board names, plus
  * real ingredient lists for indexed recipes that use what the user asked
- * for. A small, fast model, since unindexed picks are verified by
+ * for and Pinterest descriptions of other pins that mention it. A small, fast model, since unindexed picks are verified by
  * extraction afterwards.
  */
 export const pinSelectionAgent = new Agent({
@@ -14,7 +14,9 @@ export const pinSelectionAgent = new Agent({
       hand or what they're in the mood for, and a list of their saved pins
       (title and board name only). When some saved recipes' actual
       ingredient lists use what the user has, you also get those recipes
-      with their full ingredient lists.
+      with their full ingredient lists. Pins without an ingredient list
+      whose title or Pinterest description mentions what the user has come
+      with that description.
 
       Pick up to 5 pins that seem like a genuinely good fit, using real
       judgment: a request for "something asian" should match pins that sound
@@ -30,6 +32,11 @@ export const pinSelectionAgent = new Agent({
       ingredients or use one as a real part of the dish rather than a
       garnish. Still respect the rest of the request: for "breakfast", a
       dinner that happens to use eggs is a poor pick.
+
+      A description mentioning an ingredient is weaker evidence than an
+      ingredient list (it may only be in a serving suggestion), but a
+      description that's clearly about a dish built around it makes the pin
+      as good a candidate as any.
 
       If nothing looks like a plausible fit, return an empty list rather than
       picking weak options just to fill space — a later step will verify

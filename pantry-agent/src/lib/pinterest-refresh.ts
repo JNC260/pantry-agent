@@ -25,6 +25,8 @@ export async function fetchBoardPins(boardId: string) {
     id: p.id,
     title: p.title ?? null,
     sourceLink: p.link ?? null,
+    // Often just whitespace when the pinner left it blank.
+    description: p.description?.trim() || null,
   }));
   await replaceCachedPins(boardId, pins);
   return pins;

@@ -25,7 +25,15 @@ describe("refreshRecipeBoards", () => {
           { id: "b2", name: "House ideas" },
         ];
       }
-      return [{ id: "p1", title: "Cacio e pepe", link: "https://example.com/cacio" }];
+      return [
+        {
+          id: "p1",
+          title: "Cacio e pepe",
+          link: "https://example.com/cacio",
+          description: "  Pecorino, black pepper, pasta. ",
+        },
+        { id: "p2", title: null, link: null, description: " " },
+      ];
     });
 
     expect(await refreshRecipeBoards()).toEqual({ boards: 1, failedBoards: [] });
@@ -35,7 +43,13 @@ describe("refreshRecipeBoards", () => {
     ]);
     expect(getAll).not.toHaveBeenCalledWith("/boards/b2/pins");
     expect(replaceCachedPins).toHaveBeenCalledExactlyOnceWith("b1", [
-      { id: "p1", title: "Cacio e pepe", sourceLink: "https://example.com/cacio" },
+      {
+        id: "p1",
+        title: "Cacio e pepe",
+        sourceLink: "https://example.com/cacio",
+        description: "Pecorino, black pepper, pasta.",
+      },
+      { id: "p2", title: null, sourceLink: null, description: null },
     ]);
   });
 

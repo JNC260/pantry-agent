@@ -14,6 +14,7 @@ import {
   selectablePins,
 } from "../../lib/recipe-boards";
 import { getRecipeIndex } from "../../lib/recipe-index";
+import { findBlockedSites, isOnBlockedSite } from "../../lib/blocked-sites";
 import { matchRecipes } from "../../lib/ingredient-match";
 import { pinSelectionAgent } from "../agents/pin-selection-agent";
 
@@ -29,25 +30,52 @@ const MAX_RECOMMENDATIONS = 3;
 // shown to the selection agent with those lists.
 const MAX_INGREDIENT_MATCHES = 30;
 
+// Pins without an ingredient list whose title or Pinterest description
+// mentions the requested ingredients, shown with that description. Matched
+// here rather than listing every description, which would roughly
+// quadruple the pin list.
+const MAX_DESCRIPTION_MATCHES = 20;
+const MAX_DESCRIPTION_CHARS = 300;
+
+// Index results that mean a pin can't be a recommendation. Pins whose page
+// couldn't be read stay in: they're recommended by title, board, and
+// description instead.
+const NOT_RECIPES = new Set(["dead-link", "not-a-recipe"]);
+
 /**
  * Asks the selection agent which cached recipe pins best fit the request.
  * It sees every pin's title and board name, plus the real ingredient lists
  * of indexed recipes that use the requested ingredients (see
- * src/lib/recipe-index.ts). Pins the index found dead or not a recipe are
- * left out. Returns them best first, with their indexed ingredients if any.
+ * src/lib/recipe-index.ts) and the descriptions of other pins that mention
+ * them. Pins the index found dead or not a recipe are left out. Returns
+ * them best first, with their indexed ingredients if any, and whether their
+ * page is worth trying to read.
  */
 export async function selectCandidates(ingredients: string[]) {
   const [cachedPins, index] = await Promise.all([
     getAllCachedPinsLightweight(),
     getRecipeIndex(),
   ]);
+  const blockedSites = findBlockedSites(index.values());
   const allPins = selectablePins(cachedPins)
-    .filter((p) => index.get(p.sourceLink)?.status !== "failed")
+    .filter((p) => {
+      const entry = index.get(p.sourceLink);
+      return !(entry?.status === "failed" && NOT_RECIPES.has(entry.reason));
+    })
     .map((p) => {
       const entry = index.get(p.sourceLink);
       const indexed = entry?.status === "ok" ? entry : null;
-      // Many pins have a blank title; the recipe page's own title fills in.
-      return { ...p, title: p.title || indexed?.title || null, indexed };
+      return {
+        ...p,
+        // Many pins have a blank title; the recipe page's own title fills in.
+        title: p.title || indexed?.title || null,
+        indexed,
+        // The indexer already gave up on reading it, or its site blocks
+        // reading: extracting it again would only fail slowly.
+        unreadable:
+          entry?.status === "failed" ||
+          isOnBlockedSite(p.sourceLink, blockedSites),
+      };
     });
   if (allPins.length === 0) return [];
 
@@ -70,6 +98,33 @@ ${matches
   .join("\n")}`
       : "";
 
+  const descriptionMatches = matchRecipes(
+    ingredients,
+    allPins.flatMap((pin) =>
+      !pin.indexed && pin.description
+        ? [
+            {
+              pin,
+              description: pin.description,
+              ingredients: [`${pin.title ?? ""} ${pin.description}`],
+            },
+          ]
+        : [],
+    ),
+  ).slice(0, MAX_DESCRIPTION_MATCHES);
+  const descriptionList =
+    descriptionMatches.length > 0
+      ? `
+
+These saved pins have no ingredient list, but their titles or Pinterest descriptions mention some of those (id | title | mentions | description):
+${descriptionMatches
+  .map(
+    ({ recipe, matched }) =>
+      `${recipe.pin.id} | ${recipe.pin.title ?? "(untitled)"} | ${matched.join(", ")} | ${recipe.description.replace(/\s+/g, " ").slice(0, MAX_DESCRIPTION_CHARS)}`,
+  )
+  .join("\n")}`
+      : "";
+
   const pinList = `Here are the user's saved pins (id | title | board name):
 ${allPins.map((p) => `${p.id} | ${p.title ?? "(untitled)"} | ${p.boardName}`).join("\n")}`;
 
@@ -86,7 +141,7 @@ ${allPins.map((p) => `${p.id} | ${p.title ?? "(untitled)"} | ${p.boardName}`).jo
       },
       {
         role: "user",
-        content: `The user has these ingredients/preferences: ${ingredients.join(", ")}.${matchList}
+        content: `The user has these ingredients/preferences: ${ingredients.join(", ")}.${matchList}${descriptionList}
 
 Select up to ${MAX_CANDIDATES_TO_EXTRACT} pin IDs that look like genuinely good candidates, ordered from best to worst fit.`,
       },
@@ -111,8 +166,9 @@ Select up to ${MAX_CANDIDATES_TO_EXTRACT} pin IDs that look like genuinely good 
  * 3. If nothing fits, fetches recipe boards whose pins were never cached
  *    (never re-fetching a board already checked) and asks again.
  * 4. Takes each pick's ingredients from the recipe index, or extracts the
- *    ones not indexed yet in parallel; a pin that fails to extract is still
- *    offered by link.
+ *    ones not indexed yet in parallel; a pin that fails to extract, or
+ *    whose page is known to be unreadable (not tried again), is still
+ *    offered by link with its Pinterest description.
  *
  * Returns an empty list rather than a weak guess, which tells the agent to
  * fall back to web search.
@@ -137,7 +193,13 @@ export const recommendRecipesTool = createTool({
         ingredients: z
           .array(z.string())
           .describe(
-            "Every ingredient the recipe calls for; empty if the page couldn't be extracted",
+            "Every ingredient the recipe calls for; empty if the page couldn't be read",
+          ),
+        description: z
+          .string()
+          .nullable()
+          .describe(
+            "The pin's Pinterest description; what's known about a recipe whose page couldn't be read",
           ),
       }),
     ),
@@ -207,6 +269,7 @@ export const recommendRecipesTool = createTool({
       sourceLink: string;
       boardName: string;
       ingredients: string[];
+      description: string | null;
     };
 
     const results = await Promise.all(
@@ -219,8 +282,20 @@ export const recommendRecipesTool = createTool({
             sourceLink: candidate.sourceLink,
             boardName: candidate.boardName,
             ingredients: candidate.indexed.ingredients,
+            description: null,
           };
         }
+
+        // still offered by link, since selection already judged it a good
+        // fit
+        const byLink = {
+          title: candidate.title ?? `Recipe from ${candidate.boardName}`,
+          sourceLink: candidate.sourceLink,
+          boardName: candidate.boardName,
+          ingredients: [],
+          description: candidate.description,
+        };
+        if (candidate.unreadable) return byLink;
 
         try {
           const extracted = await extractRecipeTool.execute?.(
@@ -234,20 +309,15 @@ export const recommendRecipesTool = createTool({
               sourceLink: candidate.sourceLink,
               boardName: candidate.boardName,
               ingredients: extracted.ingredients.map((i) => i.item),
+              description: null,
             };
           }
         } catch (err) {
           console.error(`Extraction failed for ${candidate.sourceLink}:`, err);
         }
 
-        // extraction failed or returned nothing usable — still offer the
-        // link, since selection already judged this a good fit
-        return {
-          title: candidate.title ?? `Recipe from ${candidate.boardName}`,
-          sourceLink: candidate.sourceLink,
-          boardName: candidate.boardName,
-          ingredients: [],
-        };
+        // extraction failed or returned nothing usable
+        return byLink;
       }),
     );
 
