@@ -6,18 +6,16 @@ import { BadGatewayException, GatewayTimeoutException } from '@nestjs/common';
 const AGENT_TIMEOUT_MS = 120_000;
 
 /**
- * POSTs JSON to the Mastra server and returns the parsed reply. A timeout
- * becomes a 504, and an unreachable server or non-2xx reply a 502.
+ * Sends a request to the Mastra server and returns the parsed reply. A
+ * timeout becomes a 504, and an unreachable server or non-2xx reply a 502.
  */
-export async function postToMastra<T>(path: string, body: unknown): Promise<T> {
+async function requestMastra<T>(path: string, init: RequestInit): Promise<T> {
   const mastraUrl = process.env.MASTRA_SERVER_URL ?? 'http://localhost:4111';
   let response: Response;
 
   try {
     response = await fetch(`${mastraUrl}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      ...init,
       signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
     });
   } catch (err) {
@@ -39,4 +37,18 @@ export async function postToMastra<T>(path: string, body: unknown): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+/** POSTs JSON to the Mastra server (see requestMastra for errors). */
+export function postToMastra<T>(path: string, body: unknown): Promise<T> {
+  return requestMastra<T>(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+/** GETs from the Mastra server (see requestMastra for errors). */
+export function getFromMastra<T>(path: string): Promise<T> {
+  return requestMastra<T>(path, { method: 'GET' });
 }

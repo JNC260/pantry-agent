@@ -8,7 +8,8 @@
     "build": "mastra build",
     "start": "mastra start",
     "typecheck": "tsc --noEmit",
-    "auth:pinterest": "tsx src/lib/pinterest-auth-flow.ts"
+    "auth:pinterest": "tsx src/lib/pinterest-auth-flow.ts",
+    "index:recipes": "tsx --env-file=.env src/scripts/index-recipes.ts"
   },
   "license": "MIT",
   "type": "module",

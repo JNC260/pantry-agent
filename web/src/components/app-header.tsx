@@ -9,6 +9,7 @@ import { TOKEN_KEY } from "@/lib/storage-keys";
 const navLinks = [
   { href: "/chat", label: "Chat" },
   { href: "/pantry", label: "Pantry" },
+  { href: "/pins", label: "Pins" },
 ];
 
 const linkBase =

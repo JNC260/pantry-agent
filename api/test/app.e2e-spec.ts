@@ -45,6 +45,10 @@ describe('App (e2e)', () => {
     return request(app.getHttpServer()).get('/pantry').expect(401);
   });
 
+  it('GET /recipe-index/report rejects a request with no token', () => {
+    return request(app.getHttpServer()).get('/recipe-index/report').expect(401);
+  });
+
   describe('JwtAuthGuard', () => {
     const getPantry = (authorization: string) =>
       request(app.getHttpServer())

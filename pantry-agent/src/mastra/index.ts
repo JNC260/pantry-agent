@@ -16,12 +16,15 @@ import { pinSelectionAgent } from "./agents/pin-selection-agent";
 import { groceryMatchAgent } from "./agents/grocery-match-agent";
 import { receiptAgent } from "./agents/receipt-agent";
 import { pantryUsageAgent } from "./agents/pantry-usage-agent";
+import { ingredientListAgent } from "./agents/ingredient-list-agent";
 import { parseReceiptRoute, planCookedRoute } from "./routes/pantry-ai";
+import { recipeIndexReportRoute } from "./routes/recipe-index";
 import {
   checkPinterestConnection,
   startPinterestHealthChecks,
 } from "../lib/pinterest-health";
 import { checkRequiredEnv } from "../lib/check-env";
+import { startRecipeIndexing } from "./recipe-indexer";
 
 checkRequiredEnv();
 
@@ -33,6 +36,7 @@ export const mastra = new Mastra({
     groceryMatchAgent,
     receiptAgent,
     pantryUsageAgent,
+    ingredientListAgent,
   },
   server: {
     // Receipt uploads arrive as base64 (several screenshots or a PDF), well
@@ -41,12 +45,15 @@ export const mastra = new Mastra({
     apiRoutes: [
       parseReceiptRoute,
       planCookedRoute,
+      recipeIndexReportRoute,
       registerApiRoute("/health/pinterest", {
         method: "GET",
         // createHandler runs once at server startup, which is where the
-        // startup + daily Pinterest checks are kicked off.
+        // startup + daily Pinterest checks and recipe indexing are kicked
+        // off.
         createHandler: async () => {
           startPinterestHealthChecks();
+          startRecipeIndexing();
           return async (c) => {
             const health = await checkPinterestConnection();
             return c.json(health, health.ok ? 200 : 503);
