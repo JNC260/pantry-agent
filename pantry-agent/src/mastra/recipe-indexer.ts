@@ -1,6 +1,7 @@
 import { isValidationError, noopObserve } from "@mastra/core/tools";
 import { createTavilyExtractTool } from "@mastra/tavily";
 import { getAllCachedPinsLightweight } from "../lib/pinterest-cache";
+import { refreshRecipeBoards } from "../lib/pinterest-refresh";
 import { selectablePins } from "../lib/recipe-boards";
 import { getRecipeIndex, saveRecipeIndexEntries } from "../lib/recipe-index";
 import { toIndexEntry, type Outcome } from "../lib/recipe-index-entry";
@@ -263,6 +264,17 @@ export async function indexPendingRecipes({
 }
 
 async function runDailyIndex() {
+  // Re-download the recipe boards first, so pins deleted or fixed on
+  // Pinterest drop off (or get picked up) within a day. If Pinterest is
+  // down, index from the cache as it is.
+  try {
+    const { failedBoards } = await refreshRecipeBoards();
+    if (failedBoards.length > 0) {
+      console.warn("[recipe-indexer] couldn't refresh boards:", failedBoards);
+    }
+  } catch (err) {
+    console.error("[recipe-indexer] board refresh failed:", err);
+  }
   try {
     const summary = await indexPendingRecipes({ limit: DAILY_LIMIT });
     if (summary.attempted > 0) {
@@ -273,8 +285,8 @@ async function runDailyIndex() {
   }
 }
 
-// Indexes newly saved recipe pins at startup and then daily, up to
-// DAILY_LIMIT each time. RECIPE_INDEXING=off turns it off — set it locally,
+// Refreshes the recipe boards and indexes newly saved recipe pins at startup
+// and then daily, up to DAILY_LIMIT each time. RECIPE_INDEXING=off turns it off — set it locally,
 // since dev shares the cache database with production and would otherwise
 // index (and pay for) the same pins.
 export function startRecipeIndexing() {

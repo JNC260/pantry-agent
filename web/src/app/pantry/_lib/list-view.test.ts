@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PantryItem } from "@/lib/pantry-api";
-import { filterItems, matchesStatus, sortItems } from "./list-view";
+import {
+  filterItems,
+  groupByCategory,
+  matchesStatus,
+  sortItems,
+} from "./list-view";
 
 let nextId = 0;
 const item = (overrides: Partial<PantryItem>): PantryItem => ({
@@ -55,13 +60,14 @@ describe("sortItems", () => {
     ]);
   });
 
-  it("sorts categories by label and breaks ties by name", () => {
-    // Dairy & Eggs, Grains & Pasta, Produce (Apples, Kale)
-    expect(names(sortItems(items, { key: "category", dir: "asc" }))).toEqual([
-      "Milk",
-      "Rice",
-      "Apples",
-      "Kale",
+  it("breaks ties by name", () => {
+    const tied = [
+      item({ ingredient: "Oats", quantity: 1 }),
+      item({ ingredient: "Flour", quantity: 1 }),
+    ];
+    expect(names(sortItems(tied, { key: "quantity", dir: "desc" }))).toEqual([
+      "Flour",
+      "Oats",
     ]);
   });
 
@@ -100,19 +106,29 @@ describe("filters", () => {
 
   it("searches names case-insensitively, ignoring surrounding space", () => {
     expect(
-      names(filterItems(items, { query: " KA ", status: "all", category: "all" })),
+      names(filterItems(items, { query: " KA ", status: "all" })),
     ).toEqual(["Kale"]);
   });
 
-  it("combines search, status, and category", () => {
+  it("combines search and status", () => {
     expect(
-      names(
-        filterItems(items, {
-          query: "",
-          status: "expiring",
-          category: "dairy_eggs",
-        }),
-      ),
+      names(filterItems(items, { query: "i", status: "expiring" })),
     ).toEqual(["Milk"]);
+  });
+});
+
+describe("groupByCategory", () => {
+  it("groups in category order, keeps item order, and skips empty categories", () => {
+    const groups = groupByCategory([
+      item({ ingredient: "Rice", category: "grains_pasta" }),
+      item({ ingredient: "Kale", category: "produce" }),
+      item({ ingredient: "Apples", category: "produce" }),
+    ]);
+    expect(
+      groups.map((g) => [g.category, names(g.items)]),
+    ).toEqual([
+      ["produce", ["Kale", "Apples"]],
+      ["grains_pasta", ["Rice"]],
+    ]);
   });
 });
