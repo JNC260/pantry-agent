@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is an npm workspaces monorepo with three services that talk to each other over HTTP:
 
-- **`pantry-agent/`** — a Mastra agent server (port 4111). Owns all Pinterest API access, recipe extraction, recommendations, and grocery lists. Exposes agents via Mastra's generated HTTP API (e.g. `POST /api/agents/pantryAgent/generate`), plus `GET /health/pinterest`.
+- **`pantry-agent/`** — a Mastra agent server (port 4111). Owns all Pinterest API access, recipe extraction, recommendations, grocery lists, and AI-proposed pantry changes. Exposes agents via Mastra's generated HTTP API (e.g. `POST /api/agents/pantryAgent/generate`), plus custom routes `GET /health/pinterest`, `POST /pantry-ai/parse-receipt`, and `POST /pantry-ai/plan-cooked`.
 - **`api/`** — a NestJS backend (port 3000, default). Authenticates the web client (JWT), owns pantry CRUD, and proxies chat messages to the Mastra server. Holds no agent logic itself.
 - **`web/`** — a Next.js frontend (port 3001). Landing, login, chat, and pantry pages; calls `api/` with a bearer token.
 
@@ -18,8 +18,9 @@ File names are kebab-case throughout (Nest's `name.kind.ts` convention in `api/`
 
 - `src/mastra/index.ts` — the `Mastra` instance; all agents/workflows/scorers must be registered here (see `AGENTS.md` rule below). Calls `checkRequiredEnv()` explicitly: `mastra build` tree-shakes side-effect-only imports, so startup code must be a real call.
 - `src/mastra/agents/pantry-agent.ts` — the main user-facing agent. Its instructions encode the actual tool-call protocol (e.g. board names must be resolved to ids via `get-boards` before `get-pins-from-board`; `extract-recipe` URLs must be copied verbatim from a prior tool result, never retyped; grocery lists always come from `generate-grocery-list`). Read this file's instructions before changing tool behavior — the agent's correctness depends on tool output shapes matching what the prompt describes.
-- Sub-agents, each tool-less with structured output: `extraction-agent.ts` (recipe page → structured recipe), `pin-selection-agent.ts` (Haiku; shortlists pins by title/board), `grocery-match-agent.ts` (recipe vs pantry).
-- `src/mastra/tools/` — one file per tool, named after its id (`get-boards`, `get-pins-from-board`, `search-pins`, `extract-recipe`, `recommend-recipes`, `generate-grocery-list`, `web-search`). `recommend-recipes` is the orchestrator: it shortlists cached pins via the pin-selection agent, lazily backfills the cache (boards with zero cached pins only — never re-fetches boards that already came back empty), verifies candidates via `extract-recipe`, and falls back to an empty result (triggering the agent to use web search) rather than guessing.
+- Sub-agents, each tool-less with structured output: `extraction-agent.ts` (recipe page → structured recipe), `pin-selection-agent.ts` (Haiku; shortlists pins by title/board), `grocery-match-agent.ts` (recipe vs pantry), `receipt-agent.ts` (receipt images/PDF/text → items with `shelfLifeDays`), `pantry-usage-agent.ts` (cooked recipe → `amountUsed` per pantry row).
+- `src/mastra/routes/pantry-ai.ts` — the two `/pantry-ai/*` routes behind the pantry page's "Import receipt" and "Cooked a recipe". They only *propose* changes; pantry-agent never writes to the pantry (the web app applies approved changes through the api's `POST /pantry/batch`). Models return amounts and shelf lives, never dates or remaining quantities: expiry dates and subtraction are done in code (`receipt-items.ts`, `pantry-usage.ts`). The `plan-cooked` route calls `extract-recipe` outside an agent run, so it passes `noopObserve` as the tool context's `observe`. `server.bodySizeLimit` is raised to 20 MB for base64 receipt uploads.
+- `src/mastra/tools/` — one file per tool, named after its id (`get-boards`, `get-pins-from-board`, `search-pins`, `extract-recipe`, `recommend-recipes`, `generate-grocery-list`, `web-search`, `pantry-update-link`). `pantry-update-link` only builds `/pantry?cooked=<recipe url>` for the chat to offer after the user says they cooked something. `recommend-recipes` is the orchestrator: it shortlists cached pins via the pin-selection agent, lazily backfills the cache (boards with zero cached pins only — never re-fetches boards that already came back empty), verifies candidates via `extract-recipe`, and falls back to an empty result (triggering the agent to use web search) rather than guessing.
 - `src/lib/` — pure logic, tested alongside in `*.test.ts`:
   - `pinterest-api.ts` — GET with one retry on 401 (fresh token) / 5xx / network; `pinterestGetAll` follows bookmarks.
   - `pinterest-auth.ts` + `pinterest-token-store.ts` — rotating OAuth tokens persisted in the cache DB (`pinterest_oauth`), single-flight refresh, compare-and-swap save; local dev and prod share this DB.
@@ -27,6 +28,8 @@ File names are kebab-case throughout (Nest's `name.kind.ts` convention in `api/`
   - `recipe-boards.ts` — the hard-coded list of recipe boards and pin filtering for recommendations.
   - `grocery-prompt.ts` — expiry classification and prompt lines for grocery lists.
   - `pantry-db.ts` — read-only access to the api's `pantry_items` table (must follow the api's schema).
+  - `receipt-items.ts` — receipt-agent schema, per-category fallback shelf lives, purchase date + shelf life → expiry, non-food lines → `skipped`. Mirrors the pantry category list.
+  - `pantry-usage.ts` — pantry-usage-agent schema; turns amounts used into before → after per row (sums repeat uses, clamps at 0, 0 → remove).
   - `pinterest-health.ts` — startup + daily Pinterest check.
 - Storage: `MastraCompositeStore` splits general Mastra storage (LibSQL, `mastra.db`) from observability data (DuckDB).
 
@@ -36,17 +39,18 @@ File names are kebab-case throughout (Nest's `name.kind.ts` convention in `api/`
 
 - `config/check-env.ts` — imported first in `main.ts`; startup fails if `AUTH_PASSWORD_HASH`, `JWT_SECRET`, or `PANTRY_DB_URL` is missing.
 - `auth/` — `POST /auth/login` (`LoginDto`; bcrypt-compares against `AUTH_PASSWORD_HASH`; rate-limited 5/min/IP via `@nestjs/throttler`, with `trust proxy` set for Railway) issuing a 7-day JWT for `OWNER_ID`. `JwtAuthGuard` protects other routes via `Authorization: Bearer`.
-- `chat/` — `ChatController` (guarded, `ChatRequestDto`) → `ChatService.sendMessage`, which POSTs to the Mastra server's `pantryAgent` generate endpoint (2-minute timeout → 504) and joins per-step text. `MASTRA_SERVER_URL` controls the target (default `http://localhost:4111`).
-- `pantry/` — CRUD service/controller. `pantry.db.ts` owns the schema and column migrations. In `UpdatePantryItemDto`, `null` clears quantity/unit/expiry but is rejected (via `@OptionalNotNull`) for NOT NULL columns.
+- `mastra/mastra-client.ts` — `postToMastra`, shared by every call to the Mastra server (2-minute timeout → 504; unreachable or non-2xx → 502). `MASTRA_SERVER_URL` controls the target (default `http://localhost:4111`).
+- `chat/` — `ChatController` (guarded, `ChatRequestDto`) → `ChatService.sendMessage`, which POSTs to the Mastra server's `pantryAgent` generate endpoint and joins per-step text.
+- `pantry/` — CRUD service/controller, plus `POST /pantry/batch` (creates, updates, deletes in one libSQL write batch; 404 and nothing written if any referenced id is missing). `pantry-ai.controller.ts` relays to the Mastra `/pantry-ai/*` routes: `POST /pantry/ai/receipt` (multipart, up to 6 image/PDF `files` of 10 MB and/or `text`) and `POST /pantry/ai/cooked` (`url` xor `ingredientsText`, optional `servings`). `pantry.db.ts` owns the schema and column migrations. In `UpdatePantryItemDto`, `null` clears quantity/unit/expiry but is rejected (via `@OptionalNotNull`) for NOT NULL columns.
 - `health/` — unauthenticated `GET /health` (Railway's health check).
 - CORS origin is controlled by `WEB_ORIGIN` (default `http://localhost:3001`).
 
 ### `web` internals
 
-- App Router pages: `src/app/page.tsx` (landing), `login/`, `chat/`, `pantry/`, and `privacy/`, which renders the repo root's `privacy.md` (the only copy; Pinterest requires the policy) at build time. The pantry page's pieces live in route-private `_components/` and `_lib/`.
+- App Router pages: `src/app/page.tsx` (landing), `login/`, `chat/`, `pantry/`, and `privacy/`, which renders the repo root's `privacy.md` (the only copy; Pinterest requires the policy) at build time. The pantry page's pieces live in route-private `_components/` and `_lib/`; the import-receipt and cooked-recipe modals keep their review logic in `_lib/receipt-review.ts` and `_lib/cooked-review.ts`, and apply everything with one `applyPantryBatch`. `/pantry?cooked=<url>` (the chat's link) opens the cooked-recipe modal already reading that recipe.
 - `src/lib/api.ts` — `authedFetch` attaches the JWT from `localStorage` and redirects to `/login` on a 401; `fetchJson` also throws `ApiError` on any non-2xx.
 - `src/lib/freshness.ts` — expiry date parsing (local dates) and the expired/use-soon rules; the 3-day window matches `pantry-agent/src/lib/grocery-prompt.ts`.
-- `src/lib/use-require-auth.ts`, `storage-keys.ts`, `chat-context.tsx` (conversation state in the root layout).
+- `src/lib/use-require-auth.ts`, `storage-keys.ts`, `chat-context.tsx` (conversation state in the root layout), `use-loading-message.ts` (rotating "Simmering…" status for agent waits).
 - Next.js version in this repo has breaking changes vs. typical training data — see `web/AGENTS.md`, which points to `node_modules/next/dist/docs/` for current API/conventions before writing Next.js code.
 
 ## Commands

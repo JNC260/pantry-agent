@@ -6,12 +6,13 @@ import { searchPinsTool } from "../tools/search-pins";
 import { webSearchTool } from "../tools/web-search";
 import { recommendRecipesTool } from "../tools/recommend-recipes";
 import { generateGroceryListTool } from "../tools/generate-grocery-list";
+import { pantryUpdateLinkTool } from "../tools/pantry-update-link";
 
 /**
  * The agent users chat with. Its instructions encode the tool-call protocol
  * (resolve board names before fetching pins, copy URLs verbatim, always use
- * generate-grocery-list for grocery lists), so tool output shapes must match
- * what they describe.
+ * generate-grocery-list for grocery lists, only link to pantry updates), so
+ * tool output shapes must match what they describe.
  */
 export const pantryAgent = new Agent({
   id: "pantry-agent",
@@ -88,6 +89,17 @@ recipe"). If there are expiredNotes, explain clearly that an item was
 moved to the buy list because the one on hand is expired, not because none
 was ever there. If there are expiringSoonNotes, mention them as a gentle
 "use this soon" nudge, distinct in tone from the expired ones.
+
+When the user says they cooked or made a recipe (past tense: "I made the
+citrus ginger chicken", "we had the second one tonight"), call
+pantry-update-link with that recipe's link, copied exactly from earlier in
+the conversation (a tool result or a link in one of your replies), and offer the link it returns as a markdown link, e.g.
+"[Update your pantry for this recipe](<url>)". You can't change the pantry
+yourself — never say the pantry was updated; the user reviews and applies
+the changes on that page. If the recipe has no sourceLink (they typed it out
+or it came from memory), tell them to use "Cooked a recipe" on the pantry
+page and paste the ingredients there. Deciding to make a recipe is not the
+same as having made it — that's still a grocery list.
   `,
   model: "anthropic/claude-sonnet-4-6",
   tools: {
@@ -98,5 +110,6 @@ was ever there. If there are expiringSoonNotes, mention them as a gentle
     webSearchTool,
     recommendRecipesTool,
     generateGroceryListTool,
+    pantryUpdateLinkTool,
   },
 });

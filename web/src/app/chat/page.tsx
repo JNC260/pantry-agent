@@ -1,26 +1,39 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button, TextField } from "@/components/ui";
 import { AppHeader } from "@/components/app-header";
 import { NestedArcs } from "@/components/graphics";
 import { useChat } from "@/lib/chat-context";
+import { useLoadingMessage } from "@/lib/use-loading-message";
 import { useRequireAuth } from "@/lib/use-require-auth";
+
+const linkClasses =
+  "text-mulberry underline underline-offset-[3px] hover:text-mulberry-deep break-words";
 
 const markdownComponents: Components = {
   p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-  a: ({ children, ...props }) => (
-    <a
-      {...props}
-      target="_blank"
-      rel="noreferrer"
-      className="text-mulberry underline underline-offset-[3px] hover:text-mulberry-deep break-words"
-    >
-      {children}
-    </a>
-  ),
+  a: ({ children, href, ...props }) =>
+    // Links into the app (e.g. the agent's "update your pantry" link) stay in
+    // this tab; recipe pages and other sites open a new one.
+    href?.startsWith("/") && !href.startsWith("//") ? (
+      <Link href={href} className={linkClasses}>
+        {children}
+      </Link>
+    ) : (
+      <a
+        {...props}
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className={linkClasses}
+      >
+        {children}
+      </a>
+    ),
   strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   ul: ({ children }) => (
@@ -41,23 +54,12 @@ const markdownComponents: Components = {
   ),
 };
 
-const LOADING_MESSAGES = [
-  "Simmering…",
-  "Percolating…",
-  "Chopping ingredients…",
-  "Whisking…",
-  "Preheating the oven…",
-  "Reducing the sauce…",
-  "Tasting for seasoning…",
-  "Plating up…",
-];
-
 export default function ChatPage() {
   const { messages, sending, hydrated, unread, send, clear, markRead } =
     useChat();
   useRequireAuth();
   const [input, setInput] = useState("");
-  const [loadingIndex, setLoadingIndex] = useState(0);
+  const loadingMessage = useLoadingMessage(sending);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef(false);
 
@@ -85,20 +87,11 @@ export default function ChatPage() {
     }
   }, [messages]);
 
-  useEffect(() => {
-    if (!sending) return;
-    const id = setInterval(() => {
-      setLoadingIndex((i) => (i + 1) % LOADING_MESSAGES.length);
-    }, 2000);
-    return () => clearInterval(id);
-  }, [sending]);
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() || sending) return;
 
     setInput("");
-    setLoadingIndex(0);
     send(input);
   }
 
@@ -153,7 +146,7 @@ export default function ChatPage() {
               )}
               {sending && (
                 <p className="font-display italic text-rosemary">
-                  {LOADING_MESSAGES[loadingIndex]}
+                  {loadingMessage}
                 </p>
               )}
             </div>

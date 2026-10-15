@@ -14,6 +14,9 @@ import { pantryAgent } from "./agents/pantry-agent";
 import { recipeExtractionAgent } from "./agents/extraction-agent";
 import { pinSelectionAgent } from "./agents/pin-selection-agent";
 import { groceryMatchAgent } from "./agents/grocery-match-agent";
+import { receiptAgent } from "./agents/receipt-agent";
+import { pantryUsageAgent } from "./agents/pantry-usage-agent";
+import { parseReceiptRoute, planCookedRoute } from "./routes/pantry-ai";
 import {
   checkPinterestConnection,
   startPinterestHealthChecks,
@@ -28,9 +31,16 @@ export const mastra = new Mastra({
     recipeExtractionAgent,
     pinSelectionAgent,
     groceryMatchAgent,
+    receiptAgent,
+    pantryUsageAgent,
   },
   server: {
+    // Receipt uploads arrive as base64 (several screenshots or a PDF), well
+    // past the 4.5 MB default. The api caps each file before forwarding.
+    bodySizeLimit: 20 * 1024 * 1024,
     apiRoutes: [
+      parseReceiptRoute,
+      planCookedRoute,
       registerApiRoute("/health/pinterest", {
         method: "GET",
         // createHandler runs once at server startup, which is where the
