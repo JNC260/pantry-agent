@@ -10,7 +10,11 @@ import {
   type UnreadableRecipe,
 } from "@/lib/recipe-index-api";
 import { useRequireAuth } from "@/lib/use-require-auth";
-import { groupUnreadable, siteName } from "./_lib/unreadable-groups";
+import {
+  blockedSiteCounts,
+  groupUnreadable,
+  siteName,
+} from "./_lib/unreadable-groups";
 
 // Recipe pins the agent can't search by ingredient, with links to the pins
 // on Pinterest so the user can decide whether to keep them.
@@ -140,6 +144,11 @@ export default function PinsPage() {
                         <span className="text-walnut">({group.recipes.length})</span>
                       </h2>
                       <p className="text-sm text-walnut">{group.description}</p>
+                      {group.reason === "unreadable" && (
+                        <BlockedSitesNote
+                          sites={blockedSiteCounts(group.recipes, report.blockedSites)}
+                        />
+                      )}
                     </div>
                     <ul className="flex flex-col divide-y divide-rule">
                       {group.recipes.map((recipe) => (
@@ -182,6 +191,27 @@ function Counts({ counts }: { counts: RecipeIndexReport["counts"] }) {
         </p>
       )}
     </div>
+  );
+}
+
+function BlockedSitesNote({
+  sites,
+}: {
+  sites: { site: string; recipes: number }[];
+}) {
+  if (sites.length === 0) return null;
+  return (
+    <p className="text-sm text-walnut">
+      These sites turned the agent away every time, so it no longer tries to
+      read them:{" "}
+      {sites.map(({ site, recipes }, i) => (
+        <span key={site}>
+          {i > 0 && ", "}
+          <span className="font-medium text-ink">{site}</span> ({recipes})
+        </span>
+      ))}
+      .
+    </p>
   );
 }
 

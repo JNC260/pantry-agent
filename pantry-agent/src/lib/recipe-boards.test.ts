@@ -12,6 +12,7 @@ const pin = (overrides: Partial<LightweightPin>): LightweightPin => ({
   title: "A recipe",
   boardName: "Pastabilities",
   sourceLink: "https://example.com/a",
+  description: null,
   ...overrides,
 });
 

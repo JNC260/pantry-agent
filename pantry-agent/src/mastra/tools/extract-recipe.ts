@@ -1,6 +1,8 @@
 import { createTool, isValidationError } from "@mastra/core/tools";
 import { createTavilyExtractTool } from "@mastra/tavily";
 import { z } from "zod";
+import { BlockedSiteError, siteOf } from "../../lib/blocked-sites";
+import { getBlockedSites } from "../../lib/recipe-index";
 
 const recipeSchema = z.object({
   title: z.string(),
@@ -31,6 +33,8 @@ const MAX_PAGE_CHARS = 15_000;
  *
  * Tavily fetches the page as markdown, then the tool-less
  * recipeExtractionAgent pulls the recipe out of it with a typed schema.
+ * Links on a site that blocks automated reading (see blocked-sites.ts) fail
+ * straight away with a BlockedSiteError instead.
  * Used directly by the agent, and by recommend-recipes and
  * generate-grocery-list to check real ingredient lists.
  */
@@ -45,6 +49,14 @@ export const extractRecipeTool = createTool({
   execute: async (data, context) => {
     const { url } = data;
     const { mastra } = context;
+
+    const site = siteOf(url);
+    // If the index can't be checked, just try the page.
+    const blocked = await getBlockedSites().catch((err: unknown) => {
+      console.warn("[extract-recipe] couldn't check blocked sites:", err);
+      return new Set<string>();
+    });
+    if (site && blocked.has(site)) throw new BlockedSiteError(site);
 
     const extractResult = await tavilyExtractTool.execute?.(
       { urls: [url], extractDepth: "advanced", format: "markdown" },

@@ -2,6 +2,7 @@ import { registerApiRoute } from "@mastra/core/server";
 import { getAllCachedPinsLightweight } from "../../lib/pinterest-cache";
 import { refreshRecipeBoards } from "../../lib/pinterest-refresh";
 import { getRecipeIndex } from "../../lib/recipe-index";
+import { findBlockedSites } from "../../lib/blocked-sites";
 import { buildRecipeIndexReport } from "../../lib/recipe-index-report";
 
 async function currentReport() {
@@ -9,7 +10,7 @@ async function currentReport() {
     getAllCachedPinsLightweight(),
     getRecipeIndex(),
   ]);
-  return buildRecipeIndexReport(pins, index);
+  return buildRecipeIndexReport(pins, index, findBlockedSites(index.values()));
 }
 
 /**

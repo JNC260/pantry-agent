@@ -12,6 +12,7 @@ export type PinterestBoard = { id: string; name: string };
 export type PinterestPin = {
   id: string;
   title?: string | null;
+  description?: string | null;
   link?: string | null; // the URL back to the original recipe site
 };
 

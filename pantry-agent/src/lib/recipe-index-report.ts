@@ -4,6 +4,7 @@
  * the user can decide whether to keep it.
  */
 import type { LightweightPin } from "./pinterest-cache";
+import { siteOf } from "./blocked-sites";
 import { isRecipeBoard } from "./recipe-boards";
 import type { FailureReason } from "./recipe-index-entry";
 
@@ -38,6 +39,9 @@ export type RecipeIndexReport = {
     pending: number;
   };
   unreadable: UnreadableRecipe[];
+  // Sites among the unreadable recipes that block automated reading (see
+  // blocked-sites.ts), sorted.
+  blockedSites: string[];
 };
 
 export const pinterestPinUrl = (pinId: string) =>
@@ -46,6 +50,7 @@ export const pinterestPinUrl = (pinId: string) =>
 export function buildRecipeIndexReport(
   pins: LightweightPin[],
   index: Map<string, IndexRow>,
+  blockedSites: Set<string>,
 ): RecipeIndexReport {
   const pinsByLink = new Map<string, LightweightPin[]>();
   for (const pin of pins) {
@@ -87,5 +92,11 @@ export function buildRecipeIndexReport(
       a.pins[0].boardName.localeCompare(b.pins[0].boardName) ||
       (a.pins[0].title ?? "").localeCompare(b.pins[0].title ?? ""),
   );
-  return { counts, unreadable };
+  const reportedBlocked = new Set(
+    unreadable.flatMap(({ sourceLink }) => {
+      const site = siteOf(sourceLink);
+      return site && blockedSites.has(site) ? [site] : [];
+    }),
+  );
+  return { counts, unreadable, blockedSites: [...reportedBlocked].sort() };
 }

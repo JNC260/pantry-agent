@@ -42,7 +42,10 @@ export const getPinsFromBoardTool = createTool({
     }
 
     try {
-      return { pins: await fetchBoardPins(boardId) };
+      const pins = await fetchBoardPins(boardId);
+      return {
+        pins: pins.map(({ id, title, sourceLink }) => ({ id, title, sourceLink })),
+      };
     } catch (err) {
       // Stale pins beat no pins; pinterestGet already logged the failure.
       const cached = await getCachedPins(boardId);

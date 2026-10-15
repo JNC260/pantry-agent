@@ -22,6 +22,7 @@ export type RecipeIndexReport = {
       boardName: string;
     }[];
   }[];
+  blockedSites: string[];
 };
 
 // The report after a refresh, plus the recipe boards that couldn't be

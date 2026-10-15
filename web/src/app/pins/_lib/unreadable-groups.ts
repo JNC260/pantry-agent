@@ -25,7 +25,7 @@ const GROUPS: Omit<UnreadableGroup, "recipes">[] = [
     reason: "unreadable",
     title: "Couldn't be read",
     description:
-      "The site blocks automated reading or wouldn't load. The recipe may be fine; the agent just can't search it by ingredient.",
+      "The site blocks automated reading or wouldn't load. The recipe may be fine: the agent still recommends it by its title and Pinterest description, it just can't search it by ingredient.",
   },
   {
     reason: "errors",
@@ -49,4 +49,23 @@ export function siteName(link: string): string {
   } catch {
     return link;
   }
+}
+
+/**
+ * The blocked sites with how many of `recipes` each has, most first (ties
+ * by name).
+ */
+export function blockedSiteCounts(
+  recipes: UnreadableRecipe[],
+  blockedSites: string[],
+): { site: string; recipes: number }[] {
+  const blocked = new Set(blockedSites);
+  const counts = new Map<string, number>();
+  for (const recipe of recipes) {
+    const site = siteName(recipe.sourceLink);
+    if (blocked.has(site)) counts.set(site, (counts.get(site) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([site, count]) => ({ site, recipes: count }))
+    .sort((a, b) => b.recipes - a.recipes || a.site.localeCompare(b.site));
 }
