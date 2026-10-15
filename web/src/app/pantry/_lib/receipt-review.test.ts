@@ -32,6 +32,7 @@ const proposed = (overrides: Partial<ProposedItem>): ProposedItem => ({
   unit: "gal",
   category: "dairy_eggs",
   expirationDate: "2026-10-20",
+  expirationSource: "estimated",
   existingIngredient: null,
   ...overrides,
 });
@@ -52,6 +53,7 @@ describe("toReviewRows", () => {
       selected: true,
       mode: "new",
       existing: null,
+      expiryEstimated: true,
       draft: {
         ingredient: "Milk",
         quantity: "1",
@@ -96,6 +98,18 @@ describe("shiftPurchaseDate", () => {
     expect(shifted.map((r) => r.draft.expirationDate)).toEqual([
       "2026-10-22",
       "2027-01-02",
+    ]);
+  });
+
+  it("leaves provided expiry dates alone", () => {
+    const rows = rowsFor([
+      proposed({ expirationDate: "2026-10-20" }),
+      proposed({ expirationDate: "2026-12-31", expirationSource: "provided" }),
+    ]);
+    const shifted = shiftPurchaseDate(rows, "2026-10-10", "2026-10-12");
+    expect(shifted.map((r) => r.draft.expirationDate)).toEqual([
+      "2026-10-22",
+      "2026-12-31",
     ]);
   });
 

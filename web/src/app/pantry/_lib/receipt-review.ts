@@ -18,6 +18,9 @@ export type ReviewRow = {
   selected: boolean;
   receiptText: string;
   draft: Draft;
+  // True while the expiry is the AI's estimate from the purchase date; false
+  // once it's a date the input gave or the user set.
+  expiryEstimated: boolean;
   // The pantry item this duplicates, if any.
   existing: PantryItem | null;
   // "new" adds a row (the default); "merge" adds to `existing`.
@@ -73,6 +76,7 @@ export function toReviewRows(
       expirationDate: item.expirationDate,
       category: item.category,
     },
+    expiryEstimated: item.expirationSource === "estimated",
     existing: findExisting(item, pantry),
     mode: "new",
   }));
@@ -95,6 +99,7 @@ export function restoredRow(
       expirationDate: addDays(purchaseDate, RESTORED_SHELF_LIFE_DAYS),
       category: "other",
     },
+    expiryEstimated: true,
     existing: null,
     mode: "new",
   };
@@ -111,7 +116,8 @@ export function canMerge(row: ReviewRow): boolean {
   );
 }
 
-// Moving the purchase date moves every estimated expiry by the same amount.
+// Moving the purchase date moves every estimated expiry by the same amount;
+// dates the input gave or the user set stay put.
 export function shiftPurchaseDate(
   rows: ReviewRow[],
   from: string,
@@ -120,15 +126,19 @@ export function shiftPurchaseDate(
   const toDate = parseDate(to);
   const shift = toDate ? daysUntil(from, toDate) : null;
   if (shift === null || shift === 0) return rows;
-  return rows.map((row) => ({
-    ...row,
-    draft: {
-      ...row.draft,
-      expirationDate: row.draft.expirationDate
-        ? addDays(row.draft.expirationDate, -shift)
-        : "",
-    },
-  }));
+  return rows.map((row) =>
+    row.expiryEstimated
+      ? {
+          ...row,
+          draft: {
+            ...row.draft,
+            expirationDate: row.draft.expirationDate
+              ? addDays(row.draft.expirationDate, -shift)
+              : "",
+          },
+        }
+      : row,
+  );
 }
 
 const earlier = (a: string | null, b: string) =>

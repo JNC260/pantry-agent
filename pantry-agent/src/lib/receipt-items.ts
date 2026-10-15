@@ -68,6 +68,12 @@ export const parsedReceiptSchema = z.object({
         .describe(
           "Typical days from purchase until it should be used (best-by for packaged goods)",
         ),
+      expirationDate: z
+        .string()
+        .nullable()
+        .describe(
+          "An expiry, best-by, or use-by date written for this item in the input, as YYYY-MM-DD, or null if none is given",
+        ),
       existingIngredient: z
         .string()
         .nullable()
@@ -87,6 +93,9 @@ export type ProposedItem = {
   unit: string | null;
   category: PantryCategory;
   expirationDate: string;
+  // "provided" when the input gave this item's date; otherwise it's
+  // estimated from the purchase date and shelf life.
+  expirationSource: "provided" | "estimated";
   // The existing pantry item's exact name when this duplicates one.
   existingIngredient: string | null;
 };
@@ -139,8 +148,8 @@ function resolvePurchaseDate(value: string | null, today: Date): string {
 }
 
 /**
- * Turns the receipt agent's output into items ready for review: dates the
- * expiry from the purchase date, drops non-food lines into `skipped`, and
+ * Turns the receipt agent's output into items ready for review: keeps an
+ * expiry date the input gave, otherwise dates it from the purchase date, drops non-food lines into `skipped`, and
  * only keeps a duplicate flag when it names a real pantry item.
  */
 export function toReceiptProposal(
@@ -163,6 +172,10 @@ export function toReceiptProposal(
       continue;
     }
 
+    const providedDate =
+      item.expirationDate && parseLocalDate(item.expirationDate)
+        ? item.expirationDate
+        : null;
     const shelfLife =
       item.shelfLifeDays !== null && item.shelfLifeDays > 0
         ? Math.round(item.shelfLifeDays)
@@ -175,7 +188,8 @@ export function toReceiptProposal(
         item.quantity !== null && item.quantity > 0 ? item.quantity : null,
       unit: item.unit?.trim() || null,
       category: item.category,
-      expirationDate: addDays(purchaseDate, shelfLife),
+      expirationDate: providedDate ?? addDays(purchaseDate, shelfLife),
+      expirationSource: providedDate ? "provided" : "estimated",
       existingIngredient: item.existingIngredient
         ? (existingByName.get(item.existingIngredient.trim().toLowerCase()) ??
           null)

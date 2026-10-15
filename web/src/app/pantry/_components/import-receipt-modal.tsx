@@ -87,7 +87,11 @@ export function ImportReceiptModal({
   }
 
   function updateDraft(row: ReviewRow, fields: Partial<Draft>) {
-    updateRow(row.key, { draft: { ...row.draft, ...fields } });
+    updateRow(row.key, {
+      draft: { ...row.draft, ...fields },
+      // A date the user typed is theirs, not an estimate.
+      ...("expirationDate" in fields ? { expiryEstimated: false } : {}),
+    });
   }
 
   function changePurchaseDate(value: string) {
@@ -203,8 +207,8 @@ export function ImportReceiptModal({
               className="w-44"
             />
             <p className="text-sm text-walnut">
-              Expiry dates are estimates from the purchase date — adjust any
-              you know.
+              Dates marked est. are estimates from the purchase date — adjust
+              any you know.
             </p>
           </div>
 
@@ -318,16 +322,20 @@ function ReviewRowItem({
             className={compactField}
           />
           <label className="col-span-2 flex items-center gap-1.5 sm:col-span-1">
-            <span className="sr-only">Expires (estimated)</span>
+            <span className="sr-only">
+              {row.expiryEstimated ? "Expires (estimated)" : "Expires"}
+            </span>
             <input
               type="date"
               value={draft.expirationDate}
               onChange={(e) => onDraft({ expirationDate: e.target.value })}
               className={compactField}
             />
-            <span aria-hidden="true" className="text-xs text-walnut">
-              est.
-            </span>
+            {row.expiryEstimated && (
+              <span aria-hidden="true" className="text-xs text-walnut">
+                est.
+              </span>
+            )}
           </label>
         </div>
 

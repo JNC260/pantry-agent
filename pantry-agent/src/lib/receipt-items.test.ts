@@ -19,6 +19,7 @@ const line = (overrides: Partial<ParsedItem>): ParsedItem => ({
   unit: "gal",
   category: "dairy_eggs",
   shelfLifeDays: 10,
+  expirationDate: null,
   existingIngredient: null,
   ...overrides,
 });
@@ -48,7 +49,36 @@ describe("toReceiptProposal", () => {
     );
     expect(purchaseDate).toBe("2026-10-10");
     expect(items[0].expirationDate).toBe("2026-10-20");
+    expect(items[0].expirationSource).toBe("estimated");
   });
+
+  it("keeps an expiry date the input gave, even a past one", () => {
+    const { items } = toReceiptProposal(
+      receipt([
+        line({ expirationDate: "2027-03-01" }),
+        line({ expirationDate: "2026-10-01" }),
+      ]),
+      [],
+      TODAY,
+    );
+    expect(items.map((i) => [i.expirationDate, i.expirationSource])).toEqual([
+      ["2027-03-01", "provided"],
+      ["2026-10-01", "provided"],
+    ]);
+  });
+
+  it.each(["3/1/2027", "2027-02-31"])(
+    "estimates instead when the given expiry %s isn't a real date",
+    (expirationDate) => {
+      const { items } = toReceiptProposal(
+        receipt([line({ expirationDate, shelfLifeDays: 10 })]),
+        [],
+        TODAY,
+      );
+      expect(items[0].expirationDate).toBe("2026-10-20");
+      expect(items[0].expirationSource).toBe("estimated");
+    },
+  );
 
   it.each([
     ["missing", null],

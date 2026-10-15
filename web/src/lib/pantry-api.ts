@@ -121,8 +121,10 @@ export type ProposedItem = {
   quantity: number | null;
   unit: string | null;
   category: PantryCategory;
-  // Estimated from the purchase date.
   expirationDate: string;
+  // "provided" when the input gave this item's date; otherwise it's
+  // estimated from the purchase date.
+  expirationSource: "provided" | "estimated";
   // The existing pantry item's exact name when this duplicates one.
   existingIngredient: string | null;
 };

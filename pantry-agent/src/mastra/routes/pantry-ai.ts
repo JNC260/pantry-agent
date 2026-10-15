@@ -9,6 +9,7 @@ import {
   usagePlanSchema,
 } from "../../lib/pantry-usage";
 import {
+  formatLocalDate,
   parsedReceiptSchema,
   toReceiptProposal,
 } from "../../lib/receipt-items";
@@ -57,7 +58,9 @@ export const parseReceiptRoute = registerApiRoute("/pantry-ai/parse-receipt", {
       ...new Set(pantry.map((item) => item.ingredient)),
     ];
 
-    const prompt = `Already in the pantry:
+    const prompt = `Today is ${formatLocalDate(new Date())}.
+
+Already in the pantry:
 ${existingIngredients.join("\n") || "(pantry is empty)"}
 
 Turn every line of this receipt into a pantry item.${

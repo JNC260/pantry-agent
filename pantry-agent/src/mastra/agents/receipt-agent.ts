@@ -3,8 +3,9 @@ import { Agent } from "@mastra/core/agent";
 /**
  * Reads a grocery receipt (photo, screenshot, PDF, or pasted text) into
  * pantry items for the /pantry-ai/parse-receipt route. Tool-less with
- * structured output; dates are worked out from shelfLifeDays in code
- * (src/lib/receipt-items.ts), not by the model.
+ * structured output; unless the input gives an item's expiry date, dates are
+ * worked out from shelfLifeDays in code (src/lib/receipt-items.ts), not by
+ * the model.
  */
 export const receiptAgent = new Agent({
   id: "receipt-agent",
@@ -44,6 +45,11 @@ export const receiptAgent = new Agent({
       fridge life (fresh chicken 2 days, ground beef 2 days, milk about a
       week, eggs about 4 weeks, leafy greens about 5 days). For anything
       bought frozen, use freezer life. Always give a number.
+    - expirationDate: if the input gives an expiry, best-by, use-by, or "exp"
+      date for this item (common in a typed pantry list), that date as
+      YYYY-MM-DD. If it has no year, use the year that puts it closest to
+      today. Otherwise null — never estimate one here; shelfLifeDays covers
+      that.
     - isFood: false for anything that isn't food or drink (paper towels,
       cleaning supplies, toiletries, bags, bottle deposits, fees, discounts,
       subtotals, tax, totals). Never invent lines that aren't there.
