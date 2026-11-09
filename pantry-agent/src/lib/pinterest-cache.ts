@@ -1,7 +1,8 @@
 /**
  * libSQL cache of the user's Pinterest boards and pins.
  *
- * Tables: boards_cache, pins_cache (keyed to a board), and cache_meta, which
+ * Tables: boards_cache, pins_cache (keyed to a board, with the name of the
+ * board section the pin is in, if any), and cache_meta, which
  * records when each list was last fetched ("boards", "pins:<boardId>") for
  * the one-week freshness check. Uses PINTEREST_CACHE_DB_URL (Turso in
  * production) or a local SQLite file. The Pinterest OAuth token store
@@ -61,8 +62,12 @@ async function createTables() {
   // Columns added after the table first shipped. Existing pins get theirs
   // on their board's next refresh.
   const columns = await client.execute("PRAGMA table_info(pins_cache)");
-  if (!columns.rows.some((row) => row.name === "description")) {
+  const names = new Set(columns.rows.map((row) => String(row.name)));
+  if (!names.has("description")) {
     await client.execute("ALTER TABLE pins_cache ADD COLUMN description TEXT");
+  }
+  if (!names.has("section_name")) {
+    await client.execute("ALTER TABLE pins_cache ADD COLUMN section_name TEXT");
   }
 }
 
@@ -139,6 +144,7 @@ export async function replaceCachedPins(
     title: string | null;
     sourceLink: string | null;
     description: string | null;
+    sectionName: string | null;
   }[],
 ) {
   await ensureTables();
@@ -146,9 +152,17 @@ export async function replaceCachedPins(
     [
       { sql: "DELETE FROM pins_cache WHERE board_id = ?", args: [boardId] },
       ...pins.map((p) => ({
-        sql: `INSERT INTO pins_cache (id, board_id, title, source_link, description)
-              VALUES (?, ?, ?, ?, ?)`,
-        args: [p.id, boardId, p.title, p.sourceLink, p.description],
+        sql: `INSERT INTO pins_cache
+                (id, board_id, title, source_link, description, section_name)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [
+          p.id,
+          boardId,
+          p.title,
+          p.sourceLink,
+          p.description,
+          p.sectionName,
+        ],
       })),
     ],
     "write",
@@ -163,7 +177,7 @@ async function getPinsWithBoards(boardId?: string) {
   await ensureTables();
   const result = await client.execute({
     sql: `SELECT p.id, p.title, p.source_link, p.description, p.board_id,
-                 b.name AS board_name
+                 p.section_name, b.name AS board_name
           FROM pins_cache p
           JOIN boards_cache b ON b.id = p.board_id
           ${boardId ? "WHERE p.board_id = ?" : ""}`,
@@ -176,6 +190,7 @@ async function getPinsWithBoards(boardId?: string) {
     description: r.description == null ? null : String(r.description),
     boardId: String(r.board_id),
     boardName: String(r.board_name),
+    sectionName: r.section_name == null ? null : String(r.section_name),
   }));
 }
 
@@ -198,6 +213,9 @@ export type LightweightPin = {
   id: string;
   title: string | null;
   boardName: string;
+  // The board section ("sub-board") the pin is in, e.g. "Poultry"; null if
+  // none, or until its board's next refresh after sections were added.
+  sectionName: string | null;
   sourceLink: string | null;
   // The pin's Pinterest description, often the recipe site's own blurb.
   description: string | null;
@@ -205,11 +223,14 @@ export type LightweightPin = {
 
 export async function getAllCachedPinsLightweight(): Promise<LightweightPin[]> {
   const pins = await getPinsWithBoards();
-  return pins.map(({ id, title, boardName, sourceLink, description }) => ({
-    id,
-    title,
-    boardName,
-    sourceLink,
-    description,
-  }));
+  return pins.map(
+    ({ id, title, boardName, sectionName, sourceLink, description }) => ({
+      id,
+      title,
+      boardName,
+      sectionName,
+      sourceLink,
+      description,
+    }),
+  );
 }

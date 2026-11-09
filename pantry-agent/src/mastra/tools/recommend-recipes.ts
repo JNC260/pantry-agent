@@ -11,6 +11,7 @@ import {
 import {
   isRecipeBoard,
   missingRecipeBoards,
+  pinPlace,
   selectablePins,
 } from "../../lib/recipe-boards";
 import { getRecipeIndex } from "../../lib/recipe-index";
@@ -37,19 +38,22 @@ const MAX_INGREDIENT_MATCHES = 30;
 const MAX_DESCRIPTION_MATCHES = 20;
 const MAX_DESCRIPTION_CHARS = 300;
 
-// Index results that mean a pin can't be a recommendation. Pins whose page
-// couldn't be read stay in: they're recommended by title, board, and
-// description instead.
+// Index results that mean a pin can't be a recommendation, unless the user
+// marked it "looks fine" (e.g. a recipe video). Pins whose page couldn't be
+// read stay in: they're recommended by title, board, and description
+// instead.
 const NOT_RECIPES = new Set(["dead-link", "not-a-recipe"]);
 
 /**
  * Asks the selection agent which cached recipe pins best fit the request.
- * It sees every pin's title and board name, plus the real ingredient lists
- * of indexed recipes that use the requested ingredients (see
- * src/lib/recipe-index.ts) and the descriptions of other pins that mention
- * them. Pins the index found dead or not a recipe are left out. Returns
- * them best first, with their indexed ingredients if any, and whether their
- * page is worth trying to read.
+ * It sees every pin's title and board (with its section, e.g. "Stuff I've
+ * Done! / Poultry", which often says what the dish is), plus the real
+ * ingredient lists of indexed recipes that use the requested ingredients
+ * (see src/lib/recipe-index.ts) and the descriptions of other pins that
+ * mention them. Pins the index found dead or not a recipe are left out,
+ * unless the user marked them "looks fine". Returns them best first, with
+ * their indexed ingredients if any, and whether their page is worth trying
+ * to read.
  */
 export async function selectCandidates(ingredients: string[]) {
   const [cachedPins, index] = await Promise.all([
@@ -60,7 +64,11 @@ export async function selectCandidates(ingredients: string[]) {
   const allPins = selectablePins(cachedPins)
     .filter((p) => {
       const entry = index.get(p.sourceLink);
-      return !(entry?.status === "failed" && NOT_RECIPES.has(entry.reason));
+      return !(
+        entry?.status === "failed" &&
+        NOT_RECIPES.has(entry.reason) &&
+        entry.acceptedAt === null
+      );
     })
     .map((p) => {
       const entry = index.get(p.sourceLink);
@@ -89,11 +97,11 @@ export async function selectCandidates(ingredients: string[]) {
     matches.length > 0
       ? `
 
-These saved recipes' actual ingredient lists use some of those (id | title | uses | full ingredient list):
+These saved recipes' actual ingredient lists use some of those (id | title | board | uses | full ingredient list):
 ${matches
   .map(
     ({ recipe, matched }) =>
-      `${recipe.pin.id} | ${recipe.pin.title ?? "(untitled)"} | ${matched.join(", ")} | ${recipe.ingredients.join("; ")}`,
+      `${recipe.pin.id} | ${recipe.pin.title ?? "(untitled)"} | ${pinPlace(recipe.pin)} | ${matched.join(", ")} | ${recipe.ingredients.join("; ")}`,
   )
   .join("\n")}`
       : "";
@@ -116,17 +124,17 @@ ${matches
     descriptionMatches.length > 0
       ? `
 
-These saved pins have no ingredient list, but their titles or Pinterest descriptions mention some of those (id | title | mentions | description):
+These saved pins have no ingredient list, but their titles or Pinterest descriptions mention some of those (id | title | board | mentions | description):
 ${descriptionMatches
   .map(
     ({ recipe, matched }) =>
-      `${recipe.pin.id} | ${recipe.pin.title ?? "(untitled)"} | ${matched.join(", ")} | ${recipe.description.replace(/\s+/g, " ").slice(0, MAX_DESCRIPTION_CHARS)}`,
+      `${recipe.pin.id} | ${recipe.pin.title ?? "(untitled)"} | ${pinPlace(recipe.pin)} | ${matched.join(", ")} | ${recipe.description.replace(/\s+/g, " ").slice(0, MAX_DESCRIPTION_CHARS)}`,
   )
   .join("\n")}`
       : "";
 
-  const pinList = `Here are the user's saved pins (id | title | board name):
-${allPins.map((p) => `${p.id} | ${p.title ?? "(untitled)"} | ${p.boardName}`).join("\n")}`;
+  const pinList = `Here are the user's saved pins (id | title | board, or board / section):
+${allPins.map((p) => `${p.id} | ${p.title ?? "(untitled)"} | ${pinPlace(p)}`).join("\n")}`;
 
   const selection = await pinSelectionAgent.generate(
     [
@@ -190,6 +198,10 @@ export const recommendRecipesTool = createTool({
         title: z.string(),
         sourceLink: z.string(),
         boardName: z.string(),
+        sectionName: z
+          .string()
+          .nullable()
+          .describe("The board section it's saved in, e.g. 'Poultry'"),
         ingredients: z
           .array(z.string())
           .describe(
@@ -268,6 +280,7 @@ export const recommendRecipesTool = createTool({
       title: string;
       sourceLink: string;
       boardName: string;
+      sectionName: string | null;
       ingredients: string[];
       description: string | null;
     };
@@ -281,6 +294,7 @@ export const recommendRecipesTool = createTool({
             title: candidate.title ?? `Recipe from ${candidate.boardName}`,
             sourceLink: candidate.sourceLink,
             boardName: candidate.boardName,
+            sectionName: candidate.sectionName,
             ingredients: candidate.indexed.ingredients,
             description: null,
           };
@@ -292,6 +306,7 @@ export const recommendRecipesTool = createTool({
           title: candidate.title ?? `Recipe from ${candidate.boardName}`,
           sourceLink: candidate.sourceLink,
           boardName: candidate.boardName,
+          sectionName: candidate.sectionName,
           ingredients: [],
           description: candidate.description,
         };
@@ -308,6 +323,7 @@ export const recommendRecipesTool = createTool({
               title: extracted.title,
               sourceLink: candidate.sourceLink,
               boardName: candidate.boardName,
+              sectionName: candidate.sectionName,
               ingredients: extracted.ingredients.map((i) => i.item),
               description: null,
             };

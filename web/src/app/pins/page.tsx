@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button, Card } from "@/components/ui";
 import { AppHeader } from "@/components/app-header";
 import {
   getRecipeIndexReport,
   refreshRecipeIndex,
+  setRecipeAccepted,
   type RecipeIndexReport,
   type UnreadableRecipe,
 } from "@/lib/recipe-index-api";
@@ -32,6 +33,10 @@ export default function PinsPage() {
     text: string;
     error: boolean;
   } | null>(null);
+  // Recipe links whose "looks fine" mark is being saved, and the last
+  // failure to save one.
+  const [marking, setMarking] = useState<Set<string>>(new Set());
+  const [markError, setMarkError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +87,26 @@ export default function PinsPage() {
     }
   }
 
+  async function markAccepted(sourceLink: string, accepted: boolean) {
+    setMarking((links) => new Set(links).add(sourceLink));
+    setMarkError(null);
+    try {
+      setReport(await setRecipeAccepted(sourceLink, accepted));
+    } catch {
+      setMarkError(
+        accepted
+          ? "Couldn't mark that pin as fine. Try again."
+          : "Couldn't move that pin back. Try again.",
+      );
+    } finally {
+      setMarking((links) => {
+        const next = new Set(links);
+        next.delete(sourceLink);
+        return next;
+      });
+    }
+  }
+
   const groups = report ? groupUnreadable(report.unreadable) : [];
 
   return (
@@ -95,12 +120,16 @@ export default function PinsPage() {
             </h1>
             <p className="text-walnut">
               The agent reads each recipe pin once so it can find recipes by
-              ingredient. These are the ones it couldn&apos;t read.
+              ingredient. These are the ones it couldn&apos;t read. If a link
+              works for you (a recipe video, say), mark it &ldquo;Looks
+              fine&rdquo; and the agent will stop trying to read it.
             </p>
           </div>
 
           {loading && (
-            <p className="font-display italic text-walnut">Loading your pins…</p>
+            <p className="font-display italic text-walnut">
+              Loading your pins…
+            </p>
           )}
 
           {!loading && loadError && (
@@ -133,6 +162,12 @@ export default function PinsPage() {
                 </p>
               </div>
 
+              {markError && (
+                <p role="alert" className="text-sm text-paprika">
+                  {markError}
+                </p>
+              )}
+
               {groups.length === 0 ? (
                 <p className="text-walnut">No unreadable pins so far.</p>
               ) : (
@@ -141,22 +176,76 @@ export default function PinsPage() {
                     <div className="flex flex-col gap-1 border-t border-ink pt-5">
                       <h2 className="font-display text-xl font-medium">
                         {group.title}{" "}
-                        <span className="text-walnut">({group.recipes.length})</span>
+                        <span className="text-walnut">
+                          ({group.recipes.length})
+                        </span>
                       </h2>
                       <p className="text-sm text-walnut">{group.description}</p>
                       {group.reason === "unreadable" && (
                         <BlockedSitesNote
-                          sites={blockedSiteCounts(group.recipes, report.blockedSites)}
+                          sites={blockedSiteCounts(
+                            group.recipes,
+                            report.blockedSites,
+                          )}
                         />
                       )}
                     </div>
                     <ul className="flex flex-col divide-y divide-rule">
                       {group.recipes.map((recipe) => (
-                        <UnreadableRow key={recipe.sourceLink} recipe={recipe} />
+                        <UnreadableRow
+                          key={recipe.sourceLink}
+                          recipe={recipe}
+                          action={
+                            <Button
+                              variant="text"
+                              disabled={marking.has(recipe.sourceLink)}
+                              onClick={() =>
+                                markAccepted(recipe.sourceLink, true)
+                              }
+                            >
+                              Looks fine
+                            </Button>
+                          }
+                        />
                       ))}
                     </ul>
                   </section>
                 ))
+              )}
+
+              {report.accepted.length > 0 && (
+                <details className="flex flex-col gap-3 border-t border-ink pt-5">
+                  <summary className="cursor-pointer font-display text-xl font-medium">
+                    Marked as fine{" "}
+                    <span className="text-walnut">
+                      ({report.accepted.length})
+                    </span>
+                  </summary>
+                  <p className="mt-1 text-sm text-walnut">
+                    You said these are fine even though the agent can&apos;t
+                    read them. It recommends them by title, board, and Pinterest
+                    description, and won&apos;t try to read them again.
+                  </p>
+                  <ul className="flex flex-col divide-y divide-rule">
+                    {report.accepted.map((recipe) => (
+                      <UnreadableRow
+                        key={recipe.sourceLink}
+                        recipe={recipe}
+                        action={
+                          <Button
+                            variant="text"
+                            disabled={marking.has(recipe.sourceLink)}
+                            onClick={() =>
+                              markAccepted(recipe.sourceLink, false)
+                            }
+                          >
+                            Move back
+                          </Button>
+                        }
+                      />
+                    ))}
+                  </ul>
+                </details>
               )}
             </>
           )}
@@ -171,11 +260,14 @@ function Counts({ counts }: { counts: RecipeIndexReport["counts"] }) {
     { label: "Recipe pins", value: counts.recipes },
     { label: "Searchable by ingredient", value: counts.indexed },
     { label: "Couldn't read", value: counts.unreadable },
+    ...(counts.accepted > 0
+      ? [{ label: "Marked as fine", value: counts.accepted }]
+      : []),
     { label: "Still to read", value: counts.pending },
   ];
   return (
     <div className="flex flex-col gap-2">
-      <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-4 sm:grid-flow-col sm:auto-cols-fr sm:grid-cols-none">
         {stats.map((stat) => (
           <div key={stat.label} className="flex flex-col gap-1">
             <dt className="text-sm text-walnut">{stat.label}</dt>
@@ -215,31 +307,48 @@ function BlockedSitesNote({
   );
 }
 
-function UnreadableRow({ recipe }: { recipe: UnreadableRecipe }) {
+function UnreadableRow({
+  recipe,
+  action,
+}: {
+  recipe: UnreadableRecipe;
+  // A button acting on the recipe ("Looks fine", "Move back").
+  action: ReactNode;
+}) {
   return (
-    <li className="flex flex-col gap-1.5 py-3">
-      {recipe.pins.map((pin) => (
-        <div key={pin.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-          <a
-            href={pin.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-ink underline decoration-rule underline-offset-[3px] hover:text-rosemary hover:decoration-current"
+    <li className="flex items-start justify-between gap-4 py-3">
+      <div className="flex min-w-0 flex-col gap-1.5">
+        {recipe.pins.map((pin) => (
+          <div
+            key={pin.id}
+            className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5"
           >
-            {pin.title || "Untitled pin"}
-          </a>
-          <span className="text-sm text-walnut">{pin.boardName}</span>
-        </div>
-      ))}
-      <p className="text-xs text-walnut">
-        {siteName(recipe.sourceLink)} · {recipe.error} · last tried{" "}
-        {new Date(recipe.lastTriedAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })}
-        {recipe.attempts > 1 && ` (${recipe.attempts} tries)`}
-      </p>
+            <a
+              href={pin.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-ink underline decoration-rule underline-offset-[3px] hover:text-rosemary hover:decoration-current"
+            >
+              {pin.title || "Untitled pin"}
+            </a>
+            <span className="text-sm text-walnut">
+              {pin.sectionName
+                ? `${pin.boardName} / ${pin.sectionName}`
+                : pin.boardName}
+            </span>
+          </div>
+        ))}
+        <p className="text-xs text-walnut">
+          {siteName(recipe.sourceLink)} · {recipe.error} · last tried{" "}
+          {new Date(recipe.lastTriedAt).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+          {recipe.attempts > 1 && ` (${recipe.attempts} tries)`}
+        </p>
+      </div>
+      <div className="shrink-0 pt-0.5">{action}</div>
     </li>
   );
 }

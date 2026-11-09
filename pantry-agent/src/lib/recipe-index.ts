@@ -8,6 +8,13 @@
  * unless asked, so a bad link isn't paid for twice), or "retry" (a
  * transient error; tried again next run until it fails MAX_ATTEMPTS times —
  * see recipe-index-entry.ts).
+ *
+ * A failed row can also be marked "looks fine" by the user (accepted_at):
+ * the page really is the recipe (a video, say) even though it can't be read.
+ * It drops off the Pins page's unreadable list, is never tried again (not
+ * even by --retry-failed), and is recommended by title, board, and
+ * description whatever its failure reason. Saving a row leaves the mark
+ * alone.
  */
 import { client } from "./pinterest-cache";
 import { findBlockedSites } from "./blocked-sites";
@@ -15,7 +22,11 @@ import type { FailureReason, RecipeIndexEntry } from "./recipe-index-entry";
 
 export type { RecipeIndexEntry };
 
-export type RecipeIndexRow = RecipeIndexEntry & { indexedAt: number };
+export type RecipeIndexRow = RecipeIndexEntry & {
+  indexedAt: number;
+  // When the user marked a failed link "looks fine" (ms), or null.
+  acceptedAt: number | null;
+};
 
 let tableReady: Promise<void> | null = null;
 
@@ -47,6 +58,11 @@ async function createTable() {
       "ALTER TABLE recipe_index ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1",
     );
   }
+  if (!names.has("accepted_at")) {
+    await client.execute(
+      "ALTER TABLE recipe_index ADD COLUMN accepted_at INTEGER",
+    );
+  }
   if (!names.has("reason")) {
     await client.batch(
       [
@@ -74,7 +90,7 @@ export async function getRecipeIndex(): Promise<Map<string, RecipeIndexRow>> {
   await ensureTable();
   const result = await client.execute(
     `SELECT url, status, title, ingredients_json, source, error, reason,
-            attempts, indexed_at
+            attempts, indexed_at, accepted_at
      FROM recipe_index`,
   );
   const entries = new Map<string, RecipeIndexRow>();
@@ -89,6 +105,7 @@ export async function getRecipeIndex(): Promise<Map<string, RecipeIndexRow>> {
         ingredients: JSON.parse(String(row.ingredients_json)) as string[],
         source: row.source === "jsonld" ? "jsonld" : "ai",
         indexedAt,
+        acceptedAt: null,
       });
     } else {
       const reason = REASONS.find((r) => r === row.reason) ?? "unreadable";
@@ -99,10 +116,27 @@ export async function getRecipeIndex(): Promise<Map<string, RecipeIndexRow>> {
         error: String(row.error ?? ""),
         attempts: Number(row.attempts ?? 1),
         indexedAt,
+        acceptedAt: row.accepted_at == null ? null : Number(row.accepted_at),
       });
     }
   }
   return entries;
+}
+
+/**
+ * Marks a failed link "looks fine" (or takes the mark off). False if the
+ * link has no failed row to mark.
+ */
+export async function setRecipeAccepted(
+  url: string,
+  accepted: boolean,
+): Promise<boolean> {
+  await ensureTable();
+  const result = await client.execute({
+    sql: "UPDATE recipe_index SET accepted_at = ? WHERE url = ? AND status = 'failed'",
+    args: [accepted ? Date.now() : null, url],
+  });
+  return result.rowsAffected > 0;
 }
 
 /** Sites that block automated reading; see blocked-sites.ts. */

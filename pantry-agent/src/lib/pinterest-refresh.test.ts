@@ -25,14 +25,24 @@ describe("refreshRecipeBoards", () => {
           { id: "b2", name: "House ideas" },
         ];
       }
+      if (path === "/boards/b1/sections") {
+        return [{ id: "s1", name: "Classics" }];
+      }
       return [
         {
           id: "p1",
           title: "Cacio e pepe",
           link: "https://example.com/cacio",
           description: "  Pecorino, black pepper, pasta. ",
+          board_section_id: "s1",
         },
-        { id: "p2", title: null, link: null, description: " " },
+        {
+          id: "p2",
+          title: null,
+          link: null,
+          description: " ",
+          board_section_id: null,
+        },
       ];
     });
 
@@ -42,14 +52,22 @@ describe("refreshRecipeBoards", () => {
       { id: "b2", name: "House ideas" },
     ]);
     expect(getAll).not.toHaveBeenCalledWith("/boards/b2/pins");
+    expect(getAll).not.toHaveBeenCalledWith("/boards/b2/sections");
     expect(replaceCachedPins).toHaveBeenCalledExactlyOnceWith("b1", [
       {
         id: "p1",
         title: "Cacio e pepe",
         sourceLink: "https://example.com/cacio",
         description: "Pecorino, black pepper, pasta.",
+        sectionName: "Classics",
       },
-      { id: "p2", title: null, sourceLink: null, description: null },
+      {
+        id: "p2",
+        title: null,
+        sourceLink: null,
+        description: null,
+        sectionName: null,
+      },
     ]);
   });
 
@@ -61,7 +79,7 @@ describe("refreshRecipeBoards", () => {
           { id: "b2", name: "Sweet stuff" },
         ];
       }
-      if (path === "/boards/b1/pins") throw new Error("503");
+      if (path === "/boards/b1/sections") throw new Error("503");
       return [];
     });
 

@@ -55,6 +55,21 @@ describe('App (e2e)', () => {
       .expect(401);
   });
 
+  it('POST /recipe-index/accept rejects a request with no token', () => {
+    return request(app.getHttpServer())
+      .post('/recipe-index/accept')
+      .send({ url: 'https://example.com/a', accepted: true })
+      .expect(401);
+  });
+
+  it('POST /recipe-index/accept rejects a body without accepted', () => {
+    return request(app.getHttpServer())
+      .post('/recipe-index/accept')
+      .set(auth)
+      .send({ url: 'https://example.com/a' })
+      .expect(400);
+  });
+
   describe('JwtAuthGuard', () => {
     const getPantry = (authorization: string) =>
       request(app.getHttpServer())
