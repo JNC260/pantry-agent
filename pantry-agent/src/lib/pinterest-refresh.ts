@@ -8,6 +8,7 @@ import {
   pinterestGetAll,
   type PinterestBoard,
   type PinterestPin,
+  type PinterestSection,
 } from "./pinterest-api";
 import { replaceCachedBoards, replaceCachedPins } from "./pinterest-cache";
 import { isRecipeBoard } from "./recipe-boards";
@@ -19,7 +20,12 @@ export async function fetchBoards() {
   return boards;
 }
 
+// A board's pins, each with the name of the section it's in, if any.
 export async function fetchBoardPins(boardId: string) {
+  const sections = await pinterestGetAll<PinterestSection>(
+    `/boards/${boardId}/sections`,
+  );
+  const sectionNames = new Map(sections.map((s) => [s.id, s.name]));
   const items = await pinterestGetAll<PinterestPin>(`/boards/${boardId}/pins`);
   const pins = items.map((p) => ({
     id: p.id,
@@ -27,6 +33,8 @@ export async function fetchBoardPins(boardId: string) {
     sourceLink: p.link ?? null,
     // Often just whitespace when the pinner left it blank.
     description: p.description?.trim() || null,
+    sectionName:
+      (p.board_section_id && sectionNames.get(p.board_section_id)) || null,
   }));
   await replaceCachedPins(boardId, pins);
   return pins;

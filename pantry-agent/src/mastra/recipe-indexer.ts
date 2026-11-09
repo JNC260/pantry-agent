@@ -204,7 +204,8 @@ export type IndexSummary = {
 
 /**
  * Indexes recipe pins that aren't in the index yet or hit a transient
- * error last time (and, with `retryFailed`, ones given up on), at most
+ * error last time (and, with `retryFailed`, ones given up on that the user
+ * hasn't marked "looks fine"), at most
  * `limit` of them. Saves after every chunk, so an interrupted run keeps its
  * progress. Links on a site that blocks automated reading only get the free
  * direct fetch, unless `retryFailed` asks to try everything again.
@@ -229,7 +230,8 @@ export async function indexPendingRecipes({
       return (
         !entry ||
         entry.status === "retry" ||
-        (retryFailed && entry.status === "failed")
+        // Marked "looks fine" by the user: known unreadable, leave it be.
+        (retryFailed && entry.status === "failed" && entry.acceptedAt === null)
       );
     });
   const toIndex = pending.slice(0, limit);
@@ -271,7 +273,14 @@ export async function indexPendingRecipes({
     await saveRecipeIndexEntries(entries);
     // Later chunks see what this one learned (a site may now count as
     // blocked).
-    for (const entry of entries) index.set(entry.url, { ...entry, indexedAt: Date.now() });
+    // Saving keeps a "looks fine" mark, so the copy here does too.
+    for (const entry of entries) {
+      index.set(entry.url, {
+        ...entry,
+        indexedAt: Date.now(),
+        acceptedAt: index.get(entry.url)?.acceptedAt ?? null,
+      });
+    }
     summary.skippedBlocked += skipped.length;
 
     for (const entry of entries) {

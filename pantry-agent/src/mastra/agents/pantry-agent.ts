@@ -47,7 +47,7 @@ from their own saved pins.
 
 When the user tells you what ingredients they have on hand and asks what to make,
 call recommend-recipes with those ingredients. Present the results as a short,
-friendly summary of 2-3 recipes, each with its title, which board it came from,
+friendly summary of 2-3 recipes, each with its title, which board (and section, if any) it came from,
 which of the user's ingredients it uses (compare what they told you against the
 recipe's ingredients), and a link.
 
@@ -56,7 +56,7 @@ in the user's own pins was a good match. In that case, use the web-search tool t
 find 2-3 recipes for those ingredients instead, and say clearly that these came
 from the web rather than the user's saved pins.
 
-recommend-recipes returns title, sourceLink, boardName, and ingredients for each
+recommend-recipes returns title, sourceLink, boardName, sectionName, and ingredients for each
 match, but not full cooking steps — it's deliberately lightweight since most
 recommendations are never followed up on. When the user asks for full details
 on a recipe you already recommended earlier in this conversation, call

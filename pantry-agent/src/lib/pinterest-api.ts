@@ -9,11 +9,14 @@ const RETRY_DELAY_MS = 1_000;
 
 // The fields this app reads from Pinterest's board and pin objects.
 export type PinterestBoard = { id: string; name: string };
+// A board's section ("sub-board" on the Pinterest site).
+export type PinterestSection = { id: string; name: string };
 export type PinterestPin = {
   id: string;
   title?: string | null;
   description?: string | null;
   link?: string | null; // the URL back to the original recipe site
+  board_section_id?: string | null; // null when not in a section
 };
 
 function statusOf(err: unknown): number | undefined {

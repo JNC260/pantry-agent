@@ -1,7 +1,8 @@
 import { Agent } from "@mastra/core/agent";
 
 /**
- * Shortlists pins for recommend-recipes from titles and board names, plus
+ * Shortlists pins for recommend-recipes from titles and boards (with
+ * sections), plus
  * real ingredient lists for indexed recipes that use what the user asked
  * for and Pinterest descriptions of other pins that mention it. A small, fast model, since unindexed picks are verified by
  * extraction afterwards.
@@ -12,7 +13,8 @@ export const pinSelectionAgent = new Agent({
   instructions: `You help select which saved Pinterest pins are worth
       checking for a recipe request. You'll be given what the user has on
       hand or what they're in the mood for, and a list of their saved pins
-      (title and board name only). When some saved recipes' actual
+      (title and board only; many boards are split into sections, shown as
+      "Board / Section"). When some saved recipes' actual
       ingredient lists use what the user has, you also get those recipes
       with their full ingredient lists. Pins without an ingredient list
       whose title or Pinterest description mentions what the user has come
@@ -25,6 +27,12 @@ export const pinSelectionAgent = new Agent({
       should favor pins that plausibly use them, even if the title is vague
       (e.g. "Weeknight Dinner" could still be a good candidate for chicken if
       the board it's on is called "Chicken Recipes").
+
+      A section name is strong evidence of what a dish is built around: a
+      pin in "Stuff I've Done! / Poultry" is a chicken or turkey dish, and
+      one in "Stuff I've Done! / Dessert" is a poor pick for dinner, whatever
+      its title says. "Stuff I've Done!" holds recipes the user has actually
+      made before.
 
       Recipes listed with their ingredients are confirmed to use those
       ingredients, even when the title doesn't say so — favor them for an

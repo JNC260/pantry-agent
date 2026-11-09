@@ -6,6 +6,7 @@ const pin = (overrides: Partial<LightweightPin>): LightweightPin => ({
   id: "1",
   title: "A recipe",
   boardName: "Pastabilities",
+  sectionName: null,
   sourceLink: "https://example.com/a",
   description: null,
   ...overrides,
@@ -17,6 +18,7 @@ const failed = (indexedAt = Date.UTC(2026, 9, 14)) => ({
   error: "gone",
   attempts: 1,
   indexedAt,
+  acceptedAt: null,
 });
 
 describe("buildRecipeIndexReport", () => {
@@ -30,6 +32,7 @@ describe("buildRecipeIndexReport", () => {
         pin({ id: "5", sourceLink: "https://flaky" }),
         pin({ id: "6", sourceLink: "https://x", boardName: "Travel" }),
         pin({ id: "7", sourceLink: null }),
+        pin({ id: "8", sourceLink: "https://y", sectionName: "Cleaning" }),
       ],
       new Map<string, IndexRow>([
         ["https://ok", { status: "ok" as const }],
@@ -38,14 +41,25 @@ describe("buildRecipeIndexReport", () => {
       ]),
       new Set(),
     );
-    expect(counts).toEqual({ recipes: 4, indexed: 1, unreadable: 1, pending: 2 });
+    expect(counts).toEqual({
+      recipes: 4,
+      indexed: 1,
+      unreadable: 1,
+      accepted: 0,
+      pending: 2,
+    });
   });
 
   it("lists every pin saved with an unreadable link, with its Pinterest link", () => {
     const { unreadable } = buildRecipeIndexReport(
       [
         pin({ id: "11", sourceLink: "https://dead", title: "" }),
-        pin({ id: "12", sourceLink: "https://dead", boardName: "Sweet stuff" }),
+        pin({
+          id: "12",
+          sourceLink: "https://dead",
+          boardName: "Sweet stuff",
+          sectionName: "Cakes",
+        }),
       ],
       new Map<string, IndexRow>([["https://dead", failed()]]),
       new Set(),
@@ -63,16 +77,35 @@ describe("buildRecipeIndexReport", () => {
             url: "https://www.pinterest.com/pin/11/",
             title: null,
             boardName: "Pastabilities",
+            sectionName: null,
           },
           {
             id: "12",
             url: "https://www.pinterest.com/pin/12/",
             title: "A recipe",
             boardName: "Sweet stuff",
+            sectionName: "Cakes",
           },
         ],
       },
     ]);
+  });
+
+  it("lists links marked looks-fine apart from the unreadable ones", () => {
+    const report = buildRecipeIndexReport(
+      [
+        pin({ id: "1", sourceLink: "https://video" }),
+        pin({ id: "2", sourceLink: "https://dead" }),
+      ],
+      new Map<string, IndexRow>([
+        ["https://video", { ...failed(), acceptedAt: Date.UTC(2026, 10, 9) }],
+        ["https://dead", failed()],
+      ]),
+      new Set(),
+    );
+    expect(report.counts).toMatchObject({ unreadable: 1, accepted: 1 });
+    expect(report.unreadable.map((r) => r.sourceLink)).toEqual(["https://dead"]);
+    expect(report.accepted.map((r) => r.sourceLink)).toEqual(["https://video"]);
   });
 
   it("names the blocked sites that have unreadable recipes", () => {

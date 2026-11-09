@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   RECIPE_BOARDS,
   isRecipeBoard,
+  isRecipePin,
   missingRecipeBoards,
+  pinPlace,
   selectablePins,
 } from "./recipe-boards";
 import type { LightweightPin } from "./pinterest-cache";
@@ -11,6 +13,7 @@ const pin = (overrides: Partial<LightweightPin>): LightweightPin => ({
   id: "1",
   title: "A recipe",
   boardName: "Pastabilities",
+  sectionName: null,
   sourceLink: "https://example.com/a",
   description: null,
   ...overrides,
@@ -24,6 +27,32 @@ describe("isRecipeBoard", () => {
 
   it("rejects boards that aren't listed", () => {
     expect(isRecipeBoard("Home decor")).toBe(false);
+  });
+});
+
+describe("isRecipePin", () => {
+  it("rejects pins in a recipe board's non-recipe sections", () => {
+    const board = "Stuff I've Done!";
+    expect(isRecipePin({ boardName: board, sectionName: "Poultry" })).toBe(true);
+    expect(isRecipePin({ boardName: board, sectionName: null })).toBe(true);
+    expect(isRecipePin({ boardName: board, sectionName: " home decor" })).toBe(
+      false,
+    );
+    expect(isRecipePin({ boardName: board, sectionName: "Cleaning" })).toBe(false);
+    expect(isRecipePin({ boardName: "Travel", sectionName: "Poultry" })).toBe(
+      false,
+    );
+  });
+});
+
+describe("pinPlace", () => {
+  it("names the section after the board, when there is one", () => {
+    expect(pinPlace({ boardName: "Stuff I've Done!", sectionName: "Fish" })).toBe(
+      "Stuff I've Done! / Fish",
+    );
+    expect(pinPlace({ boardName: "Sweet stuff", sectionName: null })).toBe(
+      "Sweet stuff",
+    );
   });
 });
 
@@ -42,6 +71,7 @@ describe("selectablePins", () => {
       pin({ id: "keep" }),
       pin({ id: "no-link", sourceLink: null }),
       pin({ id: "wrong-board", boardName: "Travel" }),
+      pin({ id: "decor", sectionName: "Home Decor" }),
     ];
     expect(selectablePins(pins).map((p) => p.id)).toEqual(["keep"]);
   });
